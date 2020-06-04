@@ -4,15 +4,25 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.net.URI;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import org.eclipse.jkube.kit.build.service.docker.ImageConfiguration;
+import org.eclipse.jkube.kit.build.service.docker.ServiceHub;
+import org.eclipse.jkube.kit.build.service.docker.ServiceHubFactory;
 import org.eclipse.jkube.kit.common.Assembly;
 import org.eclipse.jkube.kit.common.AssemblyFile;
+import org.eclipse.jkube.kit.common.JavaProject;
+import org.eclipse.jkube.kit.common.KitLogger;
+import org.eclipse.jkube.kit.config.JKubeConfiguration;
 import org.eclipse.jkube.kit.config.image.build.Arguments;
 import org.eclipse.jkube.kit.config.image.build.AssemblyConfiguration;
 import org.eclipse.jkube.kit.config.image.build.BuildConfiguration;
+import org.eclipse.jkube.kit.config.resource.RuntimeMode;
+import org.eclipse.jkube.kit.config.service.BuildServiceConfig;
+import org.eclipse.jkube.kit.config.service.JKubeServiceHub;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import dev.kameshs.utils.GitHubServiceUtil;
@@ -25,7 +35,37 @@ public class ImageBuilder {
 
   static final String BASE_IMAGE = "quay.io/jbangdev/jbang-action";
 
-  public void build(String strImageUri) throws Exception {
+
+  final KitLogger kitLogger;
+  final ServiceHub serviceHub;
+  final JKubeConfiguration configuration;
+  final BuildServiceConfig dockerBuildServiceConfig;
+
+  public ImageBuilder() {
+    kitLogger = new KitLogger.StdoutLogger();
+    kitLogger.info(
+        "Initiating default JKube configuration and required services...");
+    kitLogger.info(" - Creating Docker Service Hub");
+    serviceHub = new ServiceHubFactory().createServiceHub(
+        kitLogger);
+    kitLogger.info(" - Creating Docker Build Service Configuration");
+    dockerBuildServiceConfig = BuildServiceConfig
+        .builder()
+        .build();
+    kitLogger.info(" - Creating configuration for JKube");
+    kitLogger.info(" - Current working directory is: %s",
+        getProjectDir().toFile().toString());
+    configuration = JKubeConfiguration.builder()
+        .project(JavaProject.builder()
+            .baseDirectory(getProjectDir().toFile())
+            .build())
+        .outputDirectory("scripts")
+        .build();
+
+  }
+
+  public Optional<String> build(String strImageUri) throws Exception {
+    String imageName = null;
     //TODO #2 #1 Resolve base image based on the URI
     URI uri = new URI(strImageUri);
     Optional<String> optFromImage = ImageResolverUtil.resolveFromImage(uri);
@@ -41,12 +81,10 @@ public class ImageBuilder {
       String[] segments = path.split("/");
       String jbangScriptSegment = segments[segments.length - 1];
 
-      String imageName = jbangScriptSegment;
+      imageName = jbangScriptSegment;
       String downloadURL = "https://" + uri.getHost() + path;
 
-      String tempDestinationFile =
-          "/tmp/" + path.replaceAll("/", "-").substring(1);
-
+      String destinationFile = path.replaceAll("/", "-").substring(1);
 
       String jbangExecScript = "/scripts/" + jbangScriptSegment;
 
@@ -56,12 +94,12 @@ public class ImageBuilder {
                 jbangScriptSegment.lastIndexOf("."));
       } else {
         downloadURL += ".java";
-        tempDestinationFile += ".java";
+        destinationFile += ".java";
         jbangExecScript += ".java";
       }
 
       Optional<File> downloadedSource =
-          downloadScriptFile(segments, downloadURL, tempDestinationFile);
+          downloadScriptFile(segments, downloadURL, destinationFile);
 
       if (downloadedSource.isPresent()) {
 
@@ -71,13 +109,14 @@ public class ImageBuilder {
         AssemblyFile scriptFile =
             AssemblyFile.builder()
                 .source(downloadedSource.get())
-                .outputDirectory(new File("/scripts"))
                 .build();
-        List<AssemblyFile> scriptFiles = Arrays.asList(scriptFile);
 
         AssemblyConfiguration scriptAssembly = AssemblyConfiguration
             .builder()
-            .inline(Assembly.builder().files(scriptFiles).build())
+            .targetDir("/scripts")
+            .inline(Assembly.builder().files(Arrays.asList(
+                scriptFile))
+                .build())
             .build();
 
         //Image build Configuration
@@ -87,17 +126,32 @@ public class ImageBuilder {
             .cmd(Arguments.builder()
                 .shell(jbangExecScript)
                 .build())
-            .assembly(
-                scriptAssembly)
+            .assembly(scriptAssembly)
+            .port("8080")
             .build();
 
-        ImageConfiguration
+        final ImageConfiguration imageConfiguration = ImageConfiguration
             .builder()
             .name(imageName)
             .build(bc)
             .build();
+
+        JKubeServiceHub jKubeServiceHub = JKubeServiceHub.builder()
+            .log(kitLogger)
+            .configuration(configuration)
+            .platformMode(RuntimeMode.kubernetes)
+            .dockerServiceHub(serviceHub)
+            .buildServiceConfig(dockerBuildServiceConfig)
+            .build();
+        jKubeServiceHub.getBuildService().build(imageConfiguration);
+
+        final String imageId = jKubeServiceHub.getDockerServiceHub()
+            .getDockerAccess().getImageId(imageName);
+
+        kitLogger.info("Docker image built successfully (%s)!", imageId);
       }
     }
+    return Optional.ofNullable(imageName);
   }
 
   //TODO #3 hande other sources, for now only GitHub
@@ -123,7 +177,7 @@ public class ImageBuilder {
 
       if (optContent.isPresent()) {
         LOGGER.debug("Downloaded content:{}", optContent.get());
-        file = new File(destinationFile);
+        file = new File(configuration.getOutputDirectory(), destinationFile);
         BufferedWriter writer = new BufferedWriter(new FileWriter(file));
         writer.write(optContent.get());
         writer.close();
@@ -134,5 +188,14 @@ public class ImageBuilder {
       file = null;
     }
     return Optional.ofNullable(file);
+  }
+
+  private static Path getProjectDir() {
+    final Path currentWorkDir = Paths.get("");
+    if (currentWorkDir.toAbsolutePath().endsWith("docker-image")) {
+      return currentWorkDir.toAbsolutePath();
+    }
+    return currentWorkDir.resolve("jo").resolve("kit")
+        .resolve("docker-image");
   }
 }
