@@ -2,7 +2,9 @@ package dev.kameshs;
 
 import java.io.File;
 import java.util.concurrent.Callable;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import dev.kameshs.actions.ImageBuilder;
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
@@ -11,7 +13,6 @@ import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
-import static java.util.logging.Level.*;
 
 /**
  * jo
@@ -20,7 +21,8 @@ import static java.util.logging.Level.*;
     description = "Applies a Kube minfest with jbang", version = "0.0.1")
 public class App implements Callable<Integer> {
 
-  private static final Logger LOGGER = Logger.getLogger(App.class.getName());
+  private static final Logger LOGGER =
+      LoggerFactory.getLogger(App.class);
 
   @Option(names = {"-f", "--file"}, required = true,
       description = "The Kubernetes manifest that has jbang URI ")
@@ -35,12 +37,14 @@ public class App implements Callable<Integer> {
 
   @Override
   public Integer call() throws Exception {
-    //TODO Identify the kind and load the respective model
+    //TODO Identify the kind and load the right model
     Deployment deployment = client.apps().deployments().load(mainfest).get();
     Container container =
         deployment.getSpec().getTemplate().getSpec().getContainers().get(0);
     String imageURI = container.getImage();
-    LOGGER.log(INFO, "Image URI {0}", imageURI);
+    LOGGER.debug("Image URI {}", imageURI);
+    ImageBuilder imgBuilder = new ImageBuilder();
+    imgBuilder.build(imageURI);
     return 0;
   }
 }
