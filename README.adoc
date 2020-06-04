@@ -1,0 +1,5 @@
+= Jo
+
+Highly inspired from https://github.com/google/ko[ko], a similar tool for Java using https://jbang.dev[jbang]
+
+IMPORTANT: Under active development so lots change and nothing working perfectly now
