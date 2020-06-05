@@ -26,6 +26,9 @@ public class ApplyCommand implements Runnable {
   @Inject
   KubernetesClient client;
 
+  @Inject
+  ImageBuilder imageBuilder;
+
   public void run() {
     //TODO Identify the kind and load the right model
     Deployment deployment = client.apps().deployments().load(mainfest).get();
@@ -33,9 +36,8 @@ public class ApplyCommand implements Runnable {
         deployment.getSpec().getTemplate().getSpec().getContainers().get(0);
     String imageURI = container.getImage();
     LOGGER.debug("Image URI {}", imageURI);
-    ImageBuilder imgBuilder = new ImageBuilder();
     try {
-      imgBuilder.build(imageURI);
+      imageBuilder.build(imageURI);
     } catch (Exception e) {
       LOGGER.error("Error applying the manifest", e);
     }

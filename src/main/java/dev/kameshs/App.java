@@ -3,6 +3,7 @@ package dev.kameshs;
 import javax.inject.Inject;
 import dev.kameshs.commands.ApplyCommand;
 import io.quarkus.picocli.runtime.annotations.TopCommand;
+import io.quarkus.runtime.Quarkus;
 import io.quarkus.runtime.QuarkusApplication;
 import io.quarkus.runtime.annotations.QuarkusMain;
 import picocli.CommandLine;
@@ -22,5 +23,10 @@ public class App implements QuarkusApplication {
 
   public int run(String... args) {
     return new CommandLine(this, factory).execute(args);
+  }
+
+  public static void main(String ... args) {
+    System.out.println("Running main method");
+    Quarkus.run(args);
   }
 }
