@@ -27,8 +27,11 @@ import org.eclipse.jkube.kit.config.resource.RuntimeMode;
 import org.eclipse.jkube.kit.config.service.BuildServiceConfig;
 import org.eclipse.jkube.kit.config.service.JKubeServiceHub;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import dev.kameshs.data.GitHubContent;
+import dev.kameshs.service.GitHubContentService;
 import dev.kameshs.utils.ImageResolverUtil;
 
 
@@ -40,6 +43,10 @@ public class ImageBuilder {
 
   @Inject
   ImageResolverUtil imageResolverUtil;
+
+  @Inject
+  @RestClient
+  GitHubContentService ghContentService;
 
   @ConfigProperty(name = "dev.kameshs.jo-container-repo")
   String joContainerRepo;
@@ -183,17 +190,16 @@ public class ImageBuilder {
       LOGGER.debug("Repo {} Repo-Owner{} Filepath {} ", repoOwner, repo,
           filePath);
 
-      // Optional<String> optContent =
-      //     GitHubServiceUtil.githubFileContent(repoOwner, repo, filePath);
+      GitHubContent ghContent =
+          ghContentService.githubFile(repoOwner, repo, filePath);
 
-      // if (optContent.isPresent()) {
-      //   LOGGER.debug("Downloaded content:{}", optContent.get());
-
-      //   file = new File(System.getProperty("java.io.tmpdir"), destinationFile);
-      //   BufferedWriter writer = new BufferedWriter(new FileWriter(file));
-      //   writer.write(optContent.get());
-      //   writer.close();
-      // }
+      LOGGER.debug("GitHub Content {} ", ghContent);
+      if (ghContent != null) {
+        file = new File(System.getProperty("java.io.tmpdir"), destinationFile);
+        BufferedWriter writer = new BufferedWriter(new FileWriter(file));
+        writer.write(ghContent.content);
+        writer.close();
+      }
 
     } catch (Exception e) {
       LOGGER.error("Error downloading file {}", downloadURL, e);
