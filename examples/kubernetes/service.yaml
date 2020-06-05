@@ -1,0 +1,22 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: hello-world-service
+spec:
+  selector:
+   app: helloworld
+  ports:
+  - port: 8080
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: hello-world-ingress
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /hello
+        backend:
+          serviceName: hello-world-service
+          servicePort: 8080

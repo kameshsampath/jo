@@ -4,10 +4,9 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.net.URI;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.util.Arrays;
-import java.util.Base64;
+import java.util.Collections;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -15,13 +14,16 @@ import javax.annotation.PostConstruct;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 import org.eclipse.jkube.kit.build.service.docker.ImageConfiguration;
+import org.eclipse.jkube.kit.build.service.docker.RegistryConfig;
 import org.eclipse.jkube.kit.build.service.docker.ServiceHub;
 import org.eclipse.jkube.kit.build.service.docker.ServiceHubFactory;
+import org.eclipse.jkube.kit.build.service.docker.auth.AuthConfigFactory;
 import org.eclipse.jkube.kit.common.Assembly;
 import org.eclipse.jkube.kit.common.AssemblyConfiguration;
 import org.eclipse.jkube.kit.common.AssemblyFileSet;
 import org.eclipse.jkube.kit.common.JavaProject;
 import org.eclipse.jkube.kit.common.KitLogger;
+import org.eclipse.jkube.kit.common.util.Slf4jKitLogger;
 import org.eclipse.jkube.kit.config.JKubeConfiguration;
 import org.eclipse.jkube.kit.config.image.build.Arguments;
 import org.eclipse.jkube.kit.config.image.build.BuildConfiguration;
@@ -32,16 +34,14 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import dev.kameshs.data.GitHubContent;
 import dev.kameshs.service.GitHubContentService;
 import dev.kameshs.utils.ImageResolverUtil;
-
 
 @ApplicationScoped
 public class ImageBuilder {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(
-      ImageBuilder.class.getName());
+  private static final Logger LOGGER =
+      LoggerFactory.getLogger(ImageBuilder.class.getName());
 
   @Inject
   ImageResolverUtil imageResolverUtil;
@@ -60,7 +60,7 @@ public class ImageBuilder {
 
   @PostConstruct
   void init() {
-    kitLogger = new KitLogger.StdoutLogger();
+    kitLogger = new Slf4jKitLogger(LOGGER);
     kitLogger.info(
         "Initiating default JKube configuration and required services...");
     kitLogger.info(" - Creating Docker Service Hub");
@@ -70,40 +70,39 @@ public class ImageBuilder {
     kitLogger.info(" - Creating configuration for JKube");
     configuration = JKubeConfiguration.builder()
         .project(JavaProject.builder()
-            .baseDirectory(Paths.get("").toAbsolutePath().toFile())
-            .build())
-        .outputDirectory("target")
-        .build();
+            .baseDirectory(Paths.get("").toAbsolutePath().toFile()).build())
+        .outputDirectory("target").build();
   }
 
-  public Optional<String> build(String strImageUri) throws Exception {
+  public Optional<String> newBuild(String strImageUri) throws Exception {
     String imageName = null;
-    //TODO #2 #1 Resolve base image based on the URI
+    // TODO #2 #1 Resolve base image based on the URI
     URI uri = new URI(strImageUri);
     final String fromImage = imageResolverUtil.resolveFromImage(uri)
-      .orElseThrow(() -> new IllegalStateException("Unable to find base image for URI " + uri));
+        .orElseThrow(() -> new IllegalStateException(
+            "Unable to find base image for URI " + uri));
     final String path = uri.getPath();
     LOGGER.debug("Image Host {} and Path {}", uri.getHost(), path);
 
     String[] segments = path.split("/");
     String jbangScriptSegment = segments[segments.length - 1];
 
-    imageName = joContainerRepo
-      .map(r -> String.join("/", r, jbangScriptSegment))
-      .orElse(jbangScriptSegment);
+    imageName =
+        joContainerRepo.map(r -> String.join("/", r, jbangScriptSegment))
+            .orElse(jbangScriptSegment);
 
     String downloadURL = "https://" + uri.getHost() + path;
 
-    String destinationFile = Stream.of(Arrays.copyOfRange(segments, 0, segments.length -1))
-      .filter(s -> !s.isBlank())
-      .collect(Collectors.joining("-")) + "/" + jbangScriptSegment;
+    String destinationFile =
+        Stream.of(Arrays.copyOfRange(segments, 0, segments.length - 1))
+            .filter(s -> !s.isBlank())
+            .collect(Collectors.joining("-")) + "/" + jbangScriptSegment;
 
     String jbangExecScript = "/scripts/" + jbangScriptSegment;
 
     if (jbangScriptSegment.endsWith(".java")) {
       imageName =
-          jbangScriptSegment.substring(0,
-              jbangScriptSegment.lastIndexOf("."));
+          jbangScriptSegment.substring(0, jbangScriptSegment.lastIndexOf("."));
     } else {
       downloadURL += ".java";
       destinationFile += ".java";
@@ -117,58 +116,77 @@ public class ImageBuilder {
 
       LOGGER.debug("Script Name: {} ", jbangExecScript);
 
-      //Copy the script file to destination folder
+      // Copy the script file to destination folder
       AssemblyFileSet fileSet = AssemblyFileSet.builder()
-        .directory(downloadedSource.get())
-        .fileMode("0777")
-        .build();
+          .directory(downloadedSource.get()).fileMode("0777").build();
 
-      AssemblyConfiguration scriptAssembly = AssemblyConfiguration
+      AssemblyConfiguration scriptAssembly =
+          AssemblyConfiguration
+              .builder()
+              .targetDir("/scripts")
+              .inline(Assembly
+                  .builder()
+                  .fileSet(fileSet)
+                  .build())
+              .build();
+
+      // Image build Configuration
+      BuildConfiguration bc = BuildConfiguration
           .builder()
-          .targetDir("/scripts")
-          .inline(Assembly.builder()
-            .fileSet(fileSet)
-            .build())
+          .from(fromImage)
+          .cmd(Arguments.builder()
+              .execArgument(jbangExecScript)
+              .build())
+          .assembly(scriptAssembly)
+          .port("8080")
           .build();
 
-      //Image build Configuration
-      BuildConfiguration bc = BuildConfiguration.builder()
-        .from(fromImage)
-        .entryPoint(Arguments.builder().shell("/jbang/bin/jbang " + jbangExecScript).build())
-        .cmd(Arguments.builder()
-          .shell("/jbang/bin/jbang " + jbangExecScript)
-          .build())
-        .assembly(scriptAssembly)
-        .port("8080")
-        .build();
+      final ImageConfiguration imageConfiguration =
+          ImageConfiguration
+              .builder()
+              .name(imageName)
+              .build(bc)
+              .build();
 
-      final ImageConfiguration imageConfiguration = ImageConfiguration
-          .builder()
-          .name(imageName)
-          .build(bc)
-          .build();
+      JKubeServiceHub jKubeServiceHub =
+          JKubeServiceHub
+              .builder()
+              .log(kitLogger)
+              .configuration(configuration)
+              .platformMode(RuntimeMode.kubernetes)
+              .dockerServiceHub(serviceHub)
+              .buildServiceConfig(dockerBuildServiceConfig)
+              .build();
 
-      JKubeServiceHub jKubeServiceHub = JKubeServiceHub.builder()
-          .log(kitLogger)
-          .configuration(configuration)
-          .platformMode(RuntimeMode.kubernetes)
-          .dockerServiceHub(serviceHub)
-          .buildServiceConfig(dockerBuildServiceConfig)
-          .build();
       jKubeServiceHub.getBuildService().build(imageConfiguration);
 
-      final String imageId = jKubeServiceHub.getDockerServiceHub()
-          .getDockerAccess().getImageId(imageName);
+      final String imageId = jKubeServiceHub
+          .getDockerServiceHub()
+          .getDockerAccess()
+          .getImageId(imageName);
 
-      kitLogger.info("Docker image built successfully (%s)!", imageId);
+
+      kitLogger.debug("Docker image built successfully (%s)!", imageId);
+
+
+      // Push the image to registry
+      kitLogger.info("Pushing image (%s)  to registry", imageName);
+
+      jKubeServiceHub
+          .getDockerServiceHub()
+          .getRegistryService()
+          .pushImages(
+              Collections.singletonList(imageConfiguration), 0,
+              registryConfig(),
+              false);
     }
+
     return Optional.ofNullable(imageName);
   }
 
-  //TODO #3 handle other sources, for now only GitHub
+  // TODO #3 handle other sources, for now only GitHub
   private Optional<File> downloadScriptFile(String[] segments,
-      String downloadURL,
-      String destinationFile) {
+      String downloadURL, String destinationFile) {
     File file = null;
     try {
       String repoOwner = segments[1];
@@ -183,21 +201,16 @@ public class ImageBuilder {
       LOGGER.debug("Repo {} Repo-Owner{} Filepath {} ", repoOwner, repo,
           filePath);
 
-      GitHubContent ghContent =
-          ghContentService.githubFile(repoOwner, repo, filePath);
+      String fileContent =
+          ghContentService.githubRawFileContent(repoOwner, repo, filePath);
+
+      LOGGER.debug("Script file content {} ", fileContent);
 
       file = new File(System.getProperty("java.io.tmpdir"), destinationFile);
-      if (ghContent != null && file.getParentFile().mkdirs()) {
-        try (
-          FileWriter fw = new FileWriter(file);
-          BufferedWriter writer = new BufferedWriter(fw)
-        ) {
-          final String decodedContent = new String(
-            Base64.getDecoder().decode(ghContent.content.replaceAll("[\n\r]","")),
-            StandardCharsets.UTF_8
-          );
-          LOGGER.debug("GitHub Content: {} ", decodedContent);
-          writer.write(decodedContent);
+      if (fileContent != null && file.getParentFile().mkdirs()) {
+        try (FileWriter fw = new FileWriter(file);
+            BufferedWriter writer = new BufferedWriter(fw)) {
+          writer.write(fileContent);
         }
       }
 
@@ -206,5 +219,15 @@ public class ImageBuilder {
       file = null;
     }
     return Optional.ofNullable(file);
+  }
+
+
+  // TODO #7 Ability to configure the external registries
+  private RegistryConfig registryConfig() {
+    return RegistryConfig
+        .builder()
+        .settings(Collections.emptyList())
+        .authConfigFactory(new AuthConfigFactory(kitLogger))
+        .build();
   }
 }

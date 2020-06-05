@@ -25,8 +25,8 @@ public class App implements QuarkusApplication {
     return new CommandLine(this, factory).execute(args);
   }
 
-  public static void main(String ... args) {
-    System.out.println("Running main method");
+  public static void main(String... args) {
+    System.out.println("Running Jo...");
     Quarkus.run(args);
   }
 }

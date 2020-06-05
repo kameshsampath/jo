@@ -17,4 +17,11 @@ public interface GitHubContentService {
   GitHubContent githubFile(@PathParam("owner") String owner,
       @PathParam("repo") String repo,
       @PathParam("path") String contentPath);
+
+  @GET
+  @Path("{owner}/{repo}/contents/{path}")
+  @Produces("application/vnd.github.v3.raw")
+  String githubRawFileContent(@PathParam("owner") String owner,
+      @PathParam("repo") String repo,
+      @PathParam("path") String contentPath);
 }

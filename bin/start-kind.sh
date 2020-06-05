@@ -3,8 +3,7 @@
 set -eu
 set -o errexit
 
-export CLUSTER_NAME=${CLUSTER_NAME:-jbang}
-KIND_CONFIG_DIR=${KIND_CONFIG_DIR:-~/.kind}
+export CLUSTER_NAME=${CLUSTER_NAME:-jo}
 CURRENT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 # create registry container unless it already exists
@@ -19,8 +18,14 @@ if [ "${running}" != 'true' ]; then
 fi
 
 # create a cluster with the local registry enabled in containerd
-envsubst < ${KIND_CONFIG_DIR}/kind-cluster-config.yaml | kind create cluster \
-  --name="${CLUSTER_NAME}" --config=-
+if [ -f ${CURRENT_DIR}/kind-cluster-config.yaml ];
+then 
+ echo "Loading config from ${CURRENT_DIR}/kind-cluster-config.yaml"
+ envsubst < ${CURRENT_DIR}/kind-cluster-config.yaml | kind create cluster \
+    --name="${CLUSTER_NAME}" --config=-
+else
+  kind create cluster --name="${CLUSTER_NAME}"
+fi
 
 # connect the registry to the cluster network only for new 
 if [ "${running}" != 'true' ]; then
@@ -32,6 +37,7 @@ fi
 # https://docs.tilt.dev/choosing_clusters.html#discovering-the-registry
 for node in $(kind get nodes --name="$CLUSTER_NAME"); do
   kubectl annotate node "${node}" \
+    "kind.x-k8s.io/registry=localhost:${CONTAINER_REGISTRY_PORT}" \
     "tilt.dev/registry=localhost:${CONTAINER_REGISTRY_PORT}" \
     "tilt.dev/registry-from-cluster=${CONTAINER_REGISTRY_NAME}:${CONTAINER_REGISTRY_PORT}";
 done
@@ -63,8 +69,44 @@ helm install ingress-nginx stable/nginx-ingress --namespace ingress-nginx \
 kubectl rollout status ds ingress-nginx-nginx-ingress-controller -n ingress-nginx
 kubectl rollout status deploy ingress-nginx-nginx-ingress-default-backend -n ingress-nginx
 
-###################################
-# Tekton Pipelines 
-###################################
 
-kubectl apply --filename https://storage.googleapis.com/tekton-releases/pipeline/latest/release.yaml
+######################################
+## Knative Serving
+######################################
+
+kubectl apply --selector knative.dev/crd-install=true \
+  --filename https://github.com/knative/serving/releases/download/v0.14.0/serving-crds.yaml \
+  --filename https://github.com/knative/eventing/releases/download/v0.14.0/eventing.yaml
+
+kubectl apply \
+  --filename \
+  https://github.com/knative/serving/releases/download/v0.14.0/serving-core.yaml
+
+kubectl rollout status deploy controller -n knative-serving 
+kubectl rollout status deploy activator -n knative-serving 
+
+kubectl apply \
+  --filename \
+    https://github.com/knative/net-kourier/releases/download/v0.14.0/kourier.yaml
+  
+kubectl rollout status deploy 3scale-kourier-control -n kourier-system 
+kubectl rollout status deploy 3scale-kourier-gateway -n kourier-system
+
+kubectl patch configmap/config-network \
+  -n knative-serving \
+  --type merge \
+  -p '{"data":{"ingress.class":"kourier.ingress.networking.knative.dev"}}'
+
+cat <<EOF | kubectl apply -n kourier-system -f -
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: kourier-ingress
+  namespace: kourier-system
+spec:
+  backend:
+    serviceName: kourier
+    servicePort: 80
+EOF
+
+# TODO add patch update domain to be nip.io or xip.io 

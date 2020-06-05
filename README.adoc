@@ -1,5 +1,96 @@
 = Jo
 
-Highly inspired from https://github.com/google/ko[ko], a similar tool for Java using https://jbang.dev[jbang]
+Highly inspired from https://github.com/google/ko[ko], a similar tool for Java using https://jbang.dev[jbang].
 
 IMPORTANT: Under active development so lots change and nothing working perfectly now
+
+== Pre-requisites
+
+* Kind or minikube to run the local kubernetes Cluster
+* Java 11
+* Maven 3.6.3+
+
+== Build jkube
+
+The application uses the library https://github.com/eclipse/jkube[jkube], clone, build and install locally as currently the SNAPSHOTS are not available in public maven repositories.
+
+[source,bash]
+----
+git clone https://github.com/eclipse/jkube
+cd jkube 
+mvn clean install -DskipTests
+----
+
+== Build jo
+
+[source,bash]
+----
+git clone https://github.com/kameshsampath/jo
+cd jo
+export $PROJECT_HOME=`pwd` 
+mvn clean install -DskipTests
+----
+
+== Start Kubernetes Cluster
+
+[source,bash]
+----
+$PROJECT_HOME/bin/start-kind.sh
+----
+
+== Hello World (Kubernetes Example)
+
+[source,bash]
+----
+cd $PROJECT_HOME
+java -jar target/jo-runner.jar apply --file="$PWD/examples/kubernetes/deployment.yaml"
+----
+
+The command above should do the deployment of the jbang script github.com/kameshsampath/jo/examples/http/server.java as Kubernetes application.
+
+Wait for the hello-world pod to come up:
+
+[source,bash]
+----
+watch kubectl get pods 
+----
+
+Once the pods is up try creating the Service and Ingress to access it:
+
+[source,bash]
+----
+cd $PROJECT_HOME
+kubectl apply --file="$PROJECT_HOME/examples/kubernetes/service.yaml"
+----
+
+Now doing curl localhost/hello should show a response like **Hello World**
+
+== Hello World (Knative Example)
+
+[source,bash]
+----
+cd $PROJECT_HOME
+java -jar target/jo-runner.jar apply --file="$PWD/examples/knative/service.yaml"
+----
+
+The command above will create a Knative Service of the jbang script github.com/kameshsampath/jo/examples/http/server.java.
+
+Wait for the hello-world Knative service to come up:
+
+[source,bash]
+----
+watch kubectl get ksvc 
+----
+
+Once the Ksvc is up try creating the Ingress Kourier ingress gateway to access the Knative service
+
+[source,bash]
+----
+cd $PROJECT_HOME
+kubectl apply --file="$PROJECT_HOME/examples/knative/ingress.yaml"
+----
+
+== Powered by 
+
+* https://quarkus.io[Quarkus]
+* https://www.eclipse.org/jkube/[jkube]
