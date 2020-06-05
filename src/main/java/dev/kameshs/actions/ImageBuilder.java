@@ -4,10 +4,10 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.net.URI;
-import java.nio.file.Path;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.util.Arrays;
-import java.util.List;
+import java.util.Base64;
 import java.util.Optional;
 import javax.annotation.PostConstruct;
 import javax.enterprise.context.ApplicationScoped;
@@ -16,12 +16,12 @@ import org.eclipse.jkube.kit.build.service.docker.ImageConfiguration;
 import org.eclipse.jkube.kit.build.service.docker.ServiceHub;
 import org.eclipse.jkube.kit.build.service.docker.ServiceHubFactory;
 import org.eclipse.jkube.kit.common.Assembly;
-import org.eclipse.jkube.kit.common.AssemblyFile;
+import org.eclipse.jkube.kit.common.AssemblyConfiguration;
+import org.eclipse.jkube.kit.common.AssemblyFileSet;
 import org.eclipse.jkube.kit.common.JavaProject;
 import org.eclipse.jkube.kit.common.KitLogger;
 import org.eclipse.jkube.kit.config.JKubeConfiguration;
 import org.eclipse.jkube.kit.config.image.build.Arguments;
-import org.eclipse.jkube.kit.config.image.build.AssemblyConfiguration;
 import org.eclipse.jkube.kit.config.image.build.BuildConfiguration;
 import org.eclipse.jkube.kit.config.resource.RuntimeMode;
 import org.eclipse.jkube.kit.config.service.BuildServiceConfig;
@@ -49,7 +49,7 @@ public class ImageBuilder {
   GitHubContentService ghContentService;
 
   @ConfigProperty(name = "dev.kameshs.jo-container-repo")
-  String joContainerRepo;
+  Optional<String> joContainerRepo;
 
   KitLogger kitLogger;
   ServiceHub serviceHub;
@@ -62,20 +62,15 @@ public class ImageBuilder {
     kitLogger.info(
         "Initiating default JKube configuration and required services...");
     kitLogger.info(" - Creating Docker Service Hub");
-    serviceHub = new ServiceHubFactory().createServiceHub(
-        kitLogger);
+    serviceHub = new ServiceHubFactory().createServiceHub(kitLogger);
     kitLogger.info(" - Creating Docker Build Service Configuration");
-    dockerBuildServiceConfig = BuildServiceConfig
-        .builder()
-        .build();
+    dockerBuildServiceConfig = BuildServiceConfig.builder().build();
     kitLogger.info(" - Creating configuration for JKube");
-    kitLogger.info(" - Current working directory is: %s",
-        getProjectDir().toFile().toString());
     configuration = JKubeConfiguration.builder()
         .project(JavaProject.builder()
-            .baseDirectory(getProjectDir().toFile())
+            .baseDirectory(Paths.get("").toAbsolutePath().toFile())
             .build())
-        .outputDirectory("scripts")
+        .outputDirectory("target")
         .build();
   }
 
@@ -90,14 +85,14 @@ public class ImageBuilder {
     } else {
       String fromImage = optFromImage.get();
       final String path = uri.getPath();
-      LOGGER.debug("Image Host {} and Path {}",
-          new Object[] {uri.getHost(), path});
+      LOGGER.debug("Image Host {} and Path {}", uri.getHost(), path);
 
       String[] segments = path.split("/");
       String jbangScriptSegment = segments[segments.length - 1];
 
-      imageName = String.join("/", joContainerRepo,
-          jbangScriptSegment);
+      imageName = joContainerRepo
+        .map(r -> String.join("/", r, jbangScriptSegment))
+        .orElse(jbangScriptSegment);
 
       String downloadURL = "https://" + uri.getHost() + path;
 
@@ -123,18 +118,17 @@ public class ImageBuilder {
         LOGGER.debug("Script Name: {} ", jbangExecScript);
 
         //Copy the script file to destination folder
-        AssemblyFile scriptFile =
-            AssemblyFile.builder()
-                .source(downloadedSource.get())
-                .outputDirectory(new File(configuration.getOutputDirectory()))
-                .build();
+        AssemblyFileSet fileSet = AssemblyFileSet.builder()
+          .directory(downloadedSource.get())
+          .fileMode("0777")
+          .build();
 
         AssemblyConfiguration scriptAssembly = AssemblyConfiguration
             .builder()
+            .targetDir("/scripts")
             .inline(Assembly.builder()
-                .files(Arrays.asList(
-                    scriptFile))
-                .build())
+              .fileSet(fileSet)
+              .build())
             .build();
 
         //Image build Configuration
@@ -172,7 +166,7 @@ public class ImageBuilder {
     return Optional.ofNullable(imageName);
   }
 
-  //TODO #3 hande other sources, for now only GitHub
+  //TODO #3 handle other sources, for now only GitHub
   private Optional<File> downloadScriptFile(String[] segments,
       String downloadURL,
       String destinationFile) {
@@ -193,12 +187,19 @@ public class ImageBuilder {
       GitHubContent ghContent =
           ghContentService.githubFile(repoOwner, repo, filePath);
 
-      LOGGER.debug("GitHub Content {} ", ghContent);
       if (ghContent != null) {
         file = new File(System.getProperty("java.io.tmpdir"), destinationFile);
-        BufferedWriter writer = new BufferedWriter(new FileWriter(file));
-        writer.write(ghContent.content);
-        writer.close();
+        try (
+          FileWriter fw = new FileWriter(file);
+          BufferedWriter writer = new BufferedWriter(fw)
+        ) {
+          final String decodedContent = new String(
+            Base64.getDecoder().decode(ghContent.content.replaceAll("[\n\r]","")),
+            StandardCharsets.UTF_8
+          );
+          LOGGER.debug("GitHub Content: {} ", decodedContent);
+          writer.write(decodedContent);
+        }
       }
 
     } catch (Exception e) {
@@ -206,14 +207,5 @@ public class ImageBuilder {
       file = null;
     }
     return Optional.ofNullable(file);
-  }
-
-  private static Path getProjectDir() {
-    final Path currentWorkDir = Paths.get("");
-    if (currentWorkDir.toAbsolutePath().endsWith("docker-image")) {
-      return currentWorkDir.toAbsolutePath();
-    }
-    return currentWorkDir.resolve("jo").resolve("kit")
-        .resolve("docker-image");
   }
 }
