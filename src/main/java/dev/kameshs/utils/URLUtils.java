@@ -6,11 +6,13 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Scanner;
+import javax.enterprise.context.ApplicationScoped;
 import com.google.gson.Gson;
 
+@ApplicationScoped
 public class URLUtils {
 
-  public static String swizzleURL(String url) {
+  public String swizzleURL(String url) {
     url = url.replaceFirst("^https://github.com/(.*)/blob/(.*)$",
         "https://raw.githubusercontent.com/$1/$2");
 
@@ -30,7 +32,7 @@ public class URLUtils {
     return url;
   }
 
-  private static String extractFileFromGist(String url) {
+  public String extractFileFromGist(String url) {
     // TODO: for gist we need to be smarter when it comes to downloading as it gives
     // an invalid flag when jbang compiles
 
@@ -76,7 +78,7 @@ public class URLUtils {
     Map<String, Map<String, String>> files;
   }
 
-  static String readStringFromURL(String requestURL) throws IOException {
+  public String readStringFromURL(String requestURL) throws IOException {
     try (Scanner scanner = new Scanner(new URL(requestURL).openStream(),
         StandardCharsets.UTF_8.toString())) {
       scanner.useDelimiter("\\A");

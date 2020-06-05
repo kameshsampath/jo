@@ -9,6 +9,9 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import javax.annotation.PostConstruct;
+import javax.enterprise.context.ApplicationScoped;
+import javax.inject.Inject;
 import org.eclipse.jkube.kit.build.service.docker.ImageConfiguration;
 import org.eclipse.jkube.kit.build.service.docker.ServiceHub;
 import org.eclipse.jkube.kit.build.service.docker.ServiceHubFactory;
@@ -23,25 +26,31 @@ import org.eclipse.jkube.kit.config.image.build.BuildConfiguration;
 import org.eclipse.jkube.kit.config.resource.RuntimeMode;
 import org.eclipse.jkube.kit.config.service.BuildServiceConfig;
 import org.eclipse.jkube.kit.config.service.JKubeServiceHub;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import dev.kameshs.utils.GitHubServiceUtil;
 import dev.kameshs.utils.ImageResolverUtil;
 
+
+@ApplicationScoped
 public class ImageBuilder {
+
   private static final Logger LOGGER = LoggerFactory.getLogger(
       ImageBuilder.class.getName());
-  public static final String JO_CONTAINER_REPO = "dev.local";
 
-  static final String BASE_IMAGE = "quay.io/jbangdev/jbang-action";
+  @Inject
+  ImageResolverUtil imageResolverUtil;
 
+  @ConfigProperty(name = "dev.kameshs.jo-container-repo")
+  String joContainerRepo;
 
-  final KitLogger kitLogger;
-  final ServiceHub serviceHub;
-  final JKubeConfiguration configuration;
-  final BuildServiceConfig dockerBuildServiceConfig;
+  KitLogger kitLogger;
+  ServiceHub serviceHub;
+  JKubeConfiguration configuration;
+  BuildServiceConfig dockerBuildServiceConfig;
 
-  public ImageBuilder() {
+  @PostConstruct
+  void init() {
     kitLogger = new KitLogger.StdoutLogger();
     kitLogger.info(
         "Initiating default JKube configuration and required services...");
@@ -61,14 +70,13 @@ public class ImageBuilder {
             .build())
         .outputDirectory("scripts")
         .build();
-
   }
 
   public Optional<String> build(String strImageUri) throws Exception {
     String imageName = null;
     //TODO #2 #1 Resolve base image based on the URI
     URI uri = new URI(strImageUri);
-    Optional<String> optFromImage = ImageResolverUtil.resolveFromImage(uri);
+    Optional<String> optFromImage = imageResolverUtil.resolveFromImage(uri);
     if (!optFromImage.isPresent()) {
       throw new IllegalStateException(
           "Unable to find base image for URI " + uri);
@@ -81,7 +89,9 @@ public class ImageBuilder {
       String[] segments = path.split("/");
       String jbangScriptSegment = segments[segments.length - 1];
 
-      imageName = jbangScriptSegment;
+      imageName = String.join("/", joContainerRepo,
+          jbangScriptSegment);
+
       String downloadURL = "https://" + uri.getHost() + path;
 
       String destinationFile = path.replaceAll("/", "-").substring(1);
@@ -109,13 +119,14 @@ public class ImageBuilder {
         AssemblyFile scriptFile =
             AssemblyFile.builder()
                 .source(downloadedSource.get())
+                .outputDirectory(new File(configuration.getOutputDirectory()))
                 .build();
 
         AssemblyConfiguration scriptAssembly = AssemblyConfiguration
             .builder()
-            .targetDir("/scripts")
-            .inline(Assembly.builder().files(Arrays.asList(
-                scriptFile))
+            .inline(Assembly.builder()
+                .files(Arrays.asList(
+                    scriptFile))
                 .build())
             .build();
 
@@ -172,16 +183,17 @@ public class ImageBuilder {
       LOGGER.debug("Repo {} Repo-Owner{} Filepath {} ", repoOwner, repo,
           filePath);
 
-      Optional<String> optContent =
-          GitHubServiceUtil.githubFileContent(repoOwner, repo, filePath);
+      // Optional<String> optContent =
+      //     GitHubServiceUtil.githubFileContent(repoOwner, repo, filePath);
 
-      if (optContent.isPresent()) {
-        LOGGER.debug("Downloaded content:{}", optContent.get());
-        file = new File(configuration.getOutputDirectory(), destinationFile);
-        BufferedWriter writer = new BufferedWriter(new FileWriter(file));
-        writer.write(optContent.get());
-        writer.close();
-      }
+      // if (optContent.isPresent()) {
+      //   LOGGER.debug("Downloaded content:{}", optContent.get());
+
+      //   file = new File(System.getProperty("java.io.tmpdir"), destinationFile);
+      //   BufferedWriter writer = new BufferedWriter(new FileWriter(file));
+      //   writer.write(optContent.get());
+      //   writer.close();
+      // }
 
     } catch (Exception e) {
       LOGGER.error("Error downloading file {}", downloadURL, e);
