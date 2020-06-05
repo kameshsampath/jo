@@ -39,9 +39,16 @@
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-rest-client</artifactId>
     </dependency>
+    
     <dependency>
       <groupId>io.quarkus</groupId>
-      <artifactId>quarkus-kubernetes-client</artifactId>
+      <artifactId>quarkus-resteasy-jsonb</artifactId>
+    </dependency>
+    
+    <dependency>
+      <groupId>io.fabric8</groupId>
+      <artifactId>knative-client</artifactId>
+      <version>4.10.2</version>
     </dependency>
     <dependency>
       <groupId>org.eclipse.jkube</groupId>
@@ -58,12 +65,9 @@
       <artifactId>rest-assured</artifactId>
       <scope>test</scope>
     </dependency>
-    <dependency>
-      <groupId>io.quarkus</groupId>
-      <artifactId>quarkus-resteasy-jsonb</artifactId>
-    </dependency>
   </dependencies>
   <build>
+    <finalName>${project.artifactId}</finalName>
     <plugins>
       <plugin>
         <groupId>io.quarkus</groupId>
