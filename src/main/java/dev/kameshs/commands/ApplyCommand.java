@@ -6,12 +6,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.inject.Inject;
 import javax.inject.Named;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import dev.kameshs.actions.ImageBuilder;
 import io.fabric8.knative.client.KnativeClient;
+import io.fabric8.knative.serving.v1.Service;
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
@@ -35,6 +37,7 @@ public class ApplyCommand implements Runnable {
   @Named("kubernetes-client")
   KubernetesClient kubernetesClient;
 
+
   @Inject
   @Named("knative-client")
   KnativeClient knativeClient;
@@ -55,6 +58,15 @@ public class ApplyCommand implements Runnable {
             .filter(m -> "Deployment".equalsIgnoreCase(m.getKind()))
             .map(Deployment.class::cast)
             .forEach(this::doDeployment);
+
+        metadataResources.stream()
+            .filter(m -> "serving.knative.dev/v1"
+                .equalsIgnoreCase(m.getApiVersion())
+                && "Service"
+                    .equalsIgnoreCase(m
+                        .getKind()))
+            .map(Service.class::cast)
+            .forEach(this::doKnativeService);
       }
     } catch (IOException e) {
       LOGGER.error("Error applying manifests", e);
@@ -62,25 +74,65 @@ public class ApplyCommand implements Runnable {
 
   }
 
+  /**
+   * 
+   */
   protected void doDeployment(Deployment deployment) {
 
-    var currentNamespace = kubernetesClient.getNamespace();
+    var namespace = inferOrSetNamespace(deployment);
 
-    if (currentNamespace == null) {
-      currentNamespace = "default";
-    }
+    AtomicInteger idx = new AtomicInteger(-1);
 
-    var manifestNamespace =
-        deployment.getMetadata().getNamespace() == null ? currentNamespace
-            : deployment
-                .getMetadata().getNamespace();
+    deployment.getSpec()
+        .getTemplate()
+        .getSpec()
+        .getContainers()
+        .stream()
+        .forEach(container -> {
+          String imageURI = container.getImage();
+          LOGGER.debug("Image URI {}", imageURI);
+          try {
+            Optional<String> builtImage = imageBuilder.newBuild(imageURI);
+            if (builtImage.isPresent()) {
 
-    Container container =
-        deployment.getSpec()
-            .getTemplate()
-            .getSpec()
-            .getContainers()
-            .get(0);
+              LOGGER.debug("Built Image URI {}", builtImage.get());
+
+              container.setImage(builtImage.get());
+
+              deployment.getSpec()
+                  .getTemplate()
+                  .getSpec()
+                  .getContainers()
+                  .set(idx.incrementAndGet(), container);
+
+              kubernetesClient.apps()
+                  .deployments()
+                  .inNamespace(namespace)
+                  .createOrReplace(deployment);
+
+              LOGGER.info("Applied Deployment {} in Namespace {}  ",
+                  deployment.getMetadata().getName(), namespace);
+            }
+
+          } catch (Exception e) {
+            LOGGER.error("Error applying the manifest", e);
+          }
+        });
+
+  }
+
+  /**
+   * 
+   */
+  protected void doKnativeService(Service service) {
+
+    var namespace = inferOrSetNamespace(service);
+
+    Container container = service.getSpec()
+        .getTemplate()
+        .getSpec()
+        .getContainers()
+        .get(0); // Only one by default
 
     String imageURI = container.getImage();
 
@@ -94,19 +146,18 @@ public class ApplyCommand implements Runnable {
 
         container.setImage(builtImage.get());
 
-        deployment.getSpec()
+        service.getSpec()
             .getTemplate()
             .getSpec()
             .getContainers()
             .set(0, container);
 
-        kubernetesClient.apps()
-            .deployments()
-            .inNamespace(manifestNamespace)
-            .createOrReplace(deployment);
+        knativeClient.services()
+            .inNamespace(namespace)
+            .createOrReplace(service);
 
-        LOGGER.info("Applied Deployment {} in Namespace {}  ",
-            deployment.getMetadata().getName(), currentNamespace);
+        LOGGER.info("Applied Knative Service {} in Namespace {}  ",
+            service.getMetadata().getName(), namespace);
       }
 
     } catch (Exception e) {
@@ -114,4 +165,17 @@ public class ApplyCommand implements Runnable {
     }
   }
 
+  protected String inferOrSetNamespace(HasMetadata metadataResource) {
+    var currentNamespace = kubernetesClient.getNamespace();
+
+    if (currentNamespace == null) {
+      currentNamespace = "default";
+    }
+
+    var manifestNamespace =
+        metadataResource.getMetadata().getNamespace() == null ? currentNamespace
+            : metadataResource
+                .getMetadata().getNamespace();
+    return manifestNamespace;
+  }
 }

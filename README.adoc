@@ -6,12 +6,12 @@ IMPORTANT: Under active development so lots change and nothing working perfectly
 
 == Pre-requisites
 
-* Docker for Mac or Windows
+* https://www.docker.com/products/docker-desktop[Docker for Mac or Windows]
 * https://kind.sigs.k8s.io/[kind] - to run your local Kubernetes cluster
 * Java 11
 * Maven 3.6.3+
 
-NOTE: If you are using Docker for Windows, then Windows subsytem for linux (WSL) is recommended
+NOTE: If you are using Docker for Windows, then https://docs.microsoft.com/en-us/windows/wsl/install-win10[Windows subsytem for Linux (WSL)] is recommended.
 
 == Build jo
 
@@ -59,27 +59,28 @@ Now doing curl localhost/hello should show a response like **Hello World**
 
 == Hello World (Knative Example)
 
-[source,bash]
+[source,bash,subs="attributes+,macros+"]
 ----
 cd $PROJECT_HOME
 java -jar target/jo-runner.jar apply --file="$PWD/examples/knative/service.yaml"
 ----
 
-The command above will create a Knative Service of the jbang script github.com/kameshsampath/jo/examples/http/server.java.
+The command above will create a Knative Service of the jbang script https://github.com/kameshsampath/jo/examples/http/server.java.
 
-Wait for the hello-world Knative service to come up:
-
-[source,bash]
-----
-watch kubectl get ksvc 
-----
-
-Once the Ksvc is up try creating the Ingress Kourier ingress gateway to access the Knative service
+Wait for the greeter Knative service to come up:
 
 [source,bash]
 ----
-cd $PROJECT_HOME
-kubectl apply --file="$PROJECT_HOME/examples/knative/ingress.yaml"
+watch kubectl get pods
+----
+
+Once Knative service is up access the service using:
+
+[source,bash]
+----
+SVC_URL=$(kubectl get ksvc greeter -ojsonpath="{.status.url}")
+# the curl will return an Hello World response
+curl $SVC_URL
 ----
 
 == Powered by 

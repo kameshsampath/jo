@@ -37,7 +37,6 @@ fi
 # https://docs.tilt.dev/choosing_clusters.html#discovering-the-registry
 for node in $(kind get nodes --name="$CLUSTER_NAME"); do
   kubectl annotate node "${node}" \
-    "kind.x-k8s.io/registry=localhost:${CONTAINER_REGISTRY_PORT}" \
     "tilt.dev/registry=localhost:${CONTAINER_REGISTRY_PORT}" \
     "tilt.dev/registry-from-cluster=${CONTAINER_REGISTRY_NAME}:${CONTAINER_REGISTRY_PORT}";
 done
@@ -109,4 +108,14 @@ spec:
     servicePort: 80
 EOF
 
-# TODO add patch update domain to be nip.io or xip.io 
+# skip registriesSkippingTagResolving for few local and development registry prefixes
+kubectl patch configmap/config-deployment \
+    -n knative-serving \
+    --type merge \
+    -p '{"data":{"registriesSkippingTagResolving": "ko.local,dev.local,localhost:5000"}}'
+
+# set nip.io resolution 
+kubectl patch configmap/config-domain \
+    -n knative-serving \
+    --type merge \
+    -p '{"data":{"127.0.0.1.nip.io": ""}}'

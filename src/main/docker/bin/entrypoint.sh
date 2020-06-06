@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-set +x
-
 # In OpenShift, containers are run as a random high number uid
 # that doesn't exist in /etc/passwd
 if [ `id -u` -ge 500 ] || [ -z "${CURRENT_UID}" ]; then
