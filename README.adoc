@@ -6,20 +6,12 @@ IMPORTANT: Under active development so lots change and nothing working perfectly
 
 == Pre-requisites
 
-* Kind or minikube to run the local kubernetes Cluster
+* Docker for Mac or Windows
+* https://kind.sigs.k8s.io/[kind] - to run your local Kubernetes cluster
 * Java 11
 * Maven 3.6.3+
 
-== Build jkube
-
-The application uses the library https://github.com/eclipse/jkube[jkube], clone, build and install locally as currently the SNAPSHOTS are not available in public maven repositories.
-
-[source,bash]
-----
-git clone https://github.com/eclipse/jkube
-cd jkube 
-mvn clean install -DskipTests
-----
+NOTE: If you are using Docker for Windows, then Windows subsytem for linux (WSL) is recommended
 
 == Build jo
 
