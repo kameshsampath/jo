@@ -46,6 +46,12 @@ The command above should do the deployment of the jbang script github.com/kamesh
 
 === Quarkus
 
+//TODO #10 Handle non uber jar Quarkus projects
+[IMPORTANT]
+====
+Since quarkus does not do uberjar by default, you need to configure Quarkus app to build uberjar so that the runner jar is deployed with *classifier*
+====
+
 [source,bash]
 ----
 cd $PROJECT_HOME
@@ -77,10 +83,10 @@ Once the pods is up try creating the Service and Ingress to access it:
 [source,bash]
 ----
 cd $PROJECT_HOME
-kubectl apply --file="$PROJECT_HOME/examples/kubernetes/service.yaml"
+kubectl apply --filename="$PROJECT_HOME/examples/kubernetes/service.yaml"
 ----
 
-Now doing curl localhost/hello should show a response like **Hello World**
+Now doing curl localhost/hello should show a response like **Hello World** or **Hello from Quarkus** or **Hello from  SpringBoot**
 
 == Greeter (Knative Example)
 
@@ -118,7 +124,6 @@ java -jar target/jo-runner.jar apply --file="$PWD/examples/knative/service-sprin
 The command above should do the Knative service deployment of the Quarkus Applicationt github.com/kameshsampath/jo-sb-helloworld as Kubernetes application.
 
 
-
 Wait for the greeter Knative service to come up:
 
 [source,bash]
@@ -134,6 +139,8 @@ SVC_URL=$(kubectl get ksvc greeter -ojsonpath="{.status.url}")
 # the curl will return an Hello World response
 curl $SVC_URL
 ----
+
+The `curl $SVC_URL` should show a response like **Hello World** or **Hello from Quarkus** or **Hello from  SpringBoot**
 
 == Powered by 
 

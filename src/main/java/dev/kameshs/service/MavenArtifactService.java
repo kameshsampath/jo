@@ -17,6 +17,7 @@ import org.eclipse.aether.repository.RemoteRepository;
 import org.eclipse.aether.resolution.ArtifactRequest;
 import org.eclipse.aether.resolution.ArtifactResult;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.eclipse.microprofile.faulttolerance.Retry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import io.quarkus.bootstrap.resolver.AppModelResolverException;
@@ -88,6 +89,8 @@ public class MavenArtifactService {
     return Optional.ofNullable(null);
   }
 
+
+  @Retry(maxRetries = 5, delay = 30000)
   public Optional<File> resolveArtifact(String groupId, String artifactId,
       String packaging, String version, String classifier) {
     try {

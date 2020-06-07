@@ -173,7 +173,7 @@ public class JavaImageBuilder extends ImageBuilderBase {
   }
 
   private boolean isNotMaster(String ref) {
-    return "master-SNAPSHOT".equals(ref);
+    return !"master-SNAPSHOT".equals(ref);
   }
 
 }
