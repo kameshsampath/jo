@@ -1,0 +1,32 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "name": "App<jo>",
+      "request": "launch",
+      "mainClass": "dev.kameshs.App",
+      "projectName": "jo",
+      "args": "apply -f ${input:manifestFile}"
+    },
+    {
+      "preLaunchTask": "quarkus:dev",
+      "type": "java",
+      "request": "attach",
+      "hostName": "localhost",
+      "name": "Debug Quarkus application",
+      "port": 5005
+    }
+  ],
+  "inputs": [
+    {
+      "type": "promptString",
+      "id": "manifestFile",
+      "description": "Enter the manifest file",
+      "default": "examples/http/kubernetes/deployment.yaml"
+    }
+  ]
+}

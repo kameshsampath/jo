@@ -1,23 +1,15 @@
 package dev.kameshs.actions;
 
-import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileWriter;
 import java.net.URI;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Optional;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
-import org.eclipse.aether.RepositorySystem;
-import org.eclipse.aether.spi.connector.ArtifactDownload;
 import org.eclipse.jkube.kit.build.service.docker.ImageConfiguration;
 import org.eclipse.jkube.kit.common.Assembly;
 import org.eclipse.jkube.kit.common.AssemblyConfiguration;
 import org.eclipse.jkube.kit.common.AssemblyFileSet;
-import org.eclipse.jkube.kit.config.image.build.Arguments;
 import org.eclipse.jkube.kit.config.image.build.BuildConfiguration;
 import org.eclipse.jkube.kit.config.resource.RuntimeMode;
 import org.eclipse.jkube.kit.config.service.JKubeServiceHub;
@@ -27,6 +19,7 @@ import org.slf4j.LoggerFactory;
 import dev.kameshs.data.JavaRepoInfo;
 import dev.kameshs.data.JitPackBuild;
 import dev.kameshs.service.JitPackBuildService;
+import dev.kameshs.service.MavenArtifactService;
 import dev.kameshs.utils.URLUtils;
 
 @ApplicationScoped
@@ -41,6 +34,9 @@ public class JavaImageBuilder extends ImageBuilderBase {
   @Inject
   @RestClient
   JitPackBuildService jitPackBuildService;
+
+  @Inject
+  MavenArtifactService mavenArtifactService;
 
   public Optional<String> newBuild(String strImageUri) throws Exception {
     String imageName = null;
@@ -70,16 +66,14 @@ public class JavaImageBuilder extends ImageBuilderBase {
 
       if (downloadedSource.isPresent()) {
 
-        LOGGER.debug("Script Name: {} ", "jbangExecScript");
-
         // Copy the script file to destination folder
         AssemblyFileSet fileSet = AssemblyFileSet.builder()
             .directory(downloadedSource.get()).fileMode("0777").build();
 
-        AssemblyConfiguration scriptAssembly =
+        AssemblyConfiguration jarAssembly =
             AssemblyConfiguration
                 .builder()
-                .targetDir("/scripts")
+                .targetDir("/deployments")
                 .inline(Assembly
                     .builder()
                     .fileSet(fileSet)
@@ -90,10 +84,7 @@ public class JavaImageBuilder extends ImageBuilderBase {
         BuildConfiguration bc = BuildConfiguration
             .builder()
             .from(fromImage)
-            .cmd(Arguments.builder()
-                .execArgument("jbangExecScript")
-                .build())
-            .assembly(scriptAssembly)
+            .assembly(jarAssembly)
             .port("8080")
             .build();
 
@@ -136,14 +127,18 @@ public class JavaImageBuilder extends ImageBuilderBase {
                 registryConfig(),
                 false);
       }
+    } else {
+      throw new IllegalStateException("Unable to deploy app with URI " +
+          strImageUri);
     }
     return Optional.ofNullable(imageName);
   }
 
-  // TODO #3 handle other sources, for now only GitHub
-  private Optional<File> downloadArtifact(JavaRepoInfo repoInfo) {
-    File file = null;
-    return Optional.ofNullable(file);
+  // TODO #8 Differentiate SB vs Quarkus using plugins
+  private Optional<File> downloadArtifact(JavaRepoInfo repo) {
+    var groupId = "com.github." + repo.owner;
+    return mavenArtifactService.resolveArtifact(groupId, repo.name, "jar",
+        repo.ref);
   }
 
 }

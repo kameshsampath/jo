@@ -1,6 +1,7 @@
 
 package dev.kameshs.maven;
 
+import javax.annotation.PostConstruct;
 import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.inject.Produces;
 import javax.inject.Named;
@@ -27,6 +28,13 @@ public class MavenResolver {
   @ConfigProperty(name = "dev.kameshs.jo-maven-repo",
       defaultValue = "target/local-repo")
   String joMavenRepo;
+
+  private LocalRepository localRepository;
+
+  @PostConstruct
+  void init() {
+    localRepository = new LocalRepository(joMavenRepo);
+  }
 
   @Named("jo-repository-system")
   @Produces
@@ -59,7 +67,6 @@ public class MavenResolver {
   @Produces
   RepositorySystemSession newSession(
       @Named("jo-repository-system") RepositorySystem repositorySystem) {
-    LocalRepository localRepository = new LocalRepository(joMavenRepo);
     DefaultRepositorySystemSession session =
         MavenRepositorySystemUtils.newSession();
     session.setLocalRepositoryManager(
