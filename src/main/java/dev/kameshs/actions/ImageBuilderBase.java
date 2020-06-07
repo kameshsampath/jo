@@ -3,7 +3,6 @@ package dev.kameshs.actions;
 import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.Optional;
-import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import org.eclipse.jkube.kit.build.service.docker.RegistryConfig;
 import org.eclipse.jkube.kit.build.service.docker.ServiceHub;
@@ -43,13 +42,13 @@ public abstract class ImageBuilderBase {
 
   protected ImageBuilderBase() {
     kitLogger = new Slf4jKitLogger(LOGGER);
-    kitLogger.info(
+    kitLogger.debug(
         "Initiating default JKube configuration and required services...");
-    kitLogger.info(" - Creating Docker Service Hub");
+    kitLogger.debug(" - Creating Docker Service Hub");
     serviceHub = new ServiceHubFactory().createServiceHub(kitLogger);
-    kitLogger.info(" - Creating Docker Build Service Configuration");
+    kitLogger.debug(" - Creating Docker Build Service Configuration");
     dockerBuildServiceConfig = BuildServiceConfig.builder().build();
-    kitLogger.info(" - Creating configuration for JKube");
+    kitLogger.debug(" - Creating configuration for JKube");
     configuration = JKubeConfiguration.builder()
         .project(JavaProject.builder()
             .baseDirectory(Paths.get("").toAbsolutePath().toFile()).build())

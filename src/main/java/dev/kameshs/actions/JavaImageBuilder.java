@@ -38,107 +38,142 @@ public class JavaImageBuilder extends ImageBuilderBase {
   @Inject
   MavenArtifactService mavenArtifactService;
 
-  public Optional<String> newBuild(String strImageUri) throws Exception {
+  public Optional<String> newBuild(String strImageUri) {
     String imageName = null;
-    URI uri = new URI(strImageUri);
-    final String fromImage = imageResolverUtil.resolveFromImage(uri)
-        .orElseThrow(() -> new IllegalStateException(
-            "Unable to find base image for URI " + uri));
-    final String path = uri.getPath();
-    LOGGER.debug("Image Host {} and Path {}", uri.getHost(), path);
 
-    Optional<JavaRepoInfo> rOptional = urlUtils.repoInfoFromURI(strImageUri);
+    try {
 
-    rOptional.orElseThrow(() -> new IllegalStateException(
-        "Not able to infer Repo info form " + strImageUri));
+      URI uri = new URI(strImageUri);
 
-    var repoInfo = rOptional.get();
-    var groupId = "com.github." + repoInfo.owner;
+      final String fromImage = imageResolverUtil.resolveFromImage(uri)
+          .orElseThrow(() -> new IllegalStateException(
+              "Unable to find base image for URI " + uri));
 
-    // Ensure Build is there and available for download
-    JitPackBuild build =
-        jitPackBuildService
-            .buildByTag(groupId, repoInfo.name, repoInfo.ref);
+      final String path = uri.getPath();
 
-    if ("ok".equalsIgnoreCase(build.status)) {
+      LOGGER.debug("Image Host {} and Path {}", uri.getHost(), path);
 
-      Optional<File> downloadedSource = Optional.empty();
+      Optional<JavaRepoInfo> rOptional = urlUtils.repoInfoFromURI(strImageUri);
 
-      if (downloadedSource.isPresent()) {
+      rOptional.orElseThrow(() -> new IllegalStateException(
+          "Not able to infer Repo info form " + strImageUri));
 
-        // Copy the script file to destination folder
-        AssemblyFileSet fileSet = AssemblyFileSet.builder()
-            .directory(downloadedSource.get()).fileMode("0777").build();
+      var repoInfo = rOptional.get();
+      var groupId = "com.github." + repoInfo.owner;
 
-        AssemblyConfiguration jarAssembly =
-            AssemblyConfiguration
-                .builder()
-                .targetDir("/deployments")
-                .inline(Assembly
-                    .builder()
-                    .fileSet(fileSet)
-                    .build())
-                .build();
+      imageName =
+          joContainerRepo.map(r -> String.join("/", r, repoInfo.name))
+              .orElse("localhost:5000/" + repoInfo.name);
 
-        // Image build Configuration
-        BuildConfiguration bc = BuildConfiguration
-            .builder()
-            .from(fromImage)
-            .assembly(jarAssembly)
-            .port("8080")
-            .build();
+      // TODO - need to rest it well
+      // Ensure Build is there and available for download
+      JitPackBuild build =
+          jitPackBuildService
+              .buildByTag(groupId, repoInfo.name, repoInfo.ref);
 
-        final ImageConfiguration imageConfiguration =
-            ImageConfiguration
-                .builder()
-                .name(imageName)
-                .build(bc)
-                .build();
+      if ("ok".equalsIgnoreCase(build.status)) {
 
-        JKubeServiceHub jKubeServiceHub =
-            JKubeServiceHub
-                .builder()
-                .log(kitLogger)
-                .configuration(configuration)
-                .platformMode(RuntimeMode.kubernetes)
-                .dockerServiceHub(serviceHub)
-                .buildServiceConfig(dockerBuildServiceConfig)
-                .build();
+        boolean isQuarkus = "quarkus".equals(uri.getScheme());
 
-        jKubeServiceHub.getBuildService().build(imageConfiguration);
+        Optional<File> downloadedArtifact =
+            downloadArtifact(isQuarkus, repoInfo);
 
-        final String imageId = jKubeServiceHub
-            .getDockerServiceHub()
-            .getDockerAccess()
-            .getImageId(imageName);
+        downloadedArtifact.orElseThrow(() -> new IllegalStateException(
+            "Unable to download image artifact for " + strImageUri));
 
 
-        kitLogger.debug("Docker image built successfully (%s)!", imageId);
+        if (isNotMaster(repoInfo.ref)) {
+          imageName = imageName + ":" + build.version;
+        }
+
+        if (downloadedArtifact.isPresent()) {
+
+          // Copy the script file to destination folder
+          AssemblyFileSet fileSet = AssemblyFileSet.builder()
+              .directory(downloadedArtifact.get()).fileMode("0777").build();
+
+          AssemblyConfiguration jarAssembly =
+              AssemblyConfiguration
+                  .builder()
+                  .targetDir("/deployments")
+                  .inline(Assembly
+                      .builder()
+                      .fileSet(fileSet)
+                      .build())
+                  .build();
+
+          // Image build Configuration
+          BuildConfiguration bc = BuildConfiguration
+              .builder()
+              .from(fromImage)
+              .assembly(jarAssembly)
+              .port("8080")
+              .build();
+
+          final ImageConfiguration imageConfiguration =
+              ImageConfiguration
+                  .builder()
+                  .name(imageName)
+                  .build(bc)
+                  .build();
+
+          JKubeServiceHub jKubeServiceHub =
+              JKubeServiceHub
+                  .builder()
+                  .log(kitLogger)
+                  .configuration(configuration)
+                  .platformMode(RuntimeMode.kubernetes)
+                  .dockerServiceHub(serviceHub)
+                  .buildServiceConfig(dockerBuildServiceConfig)
+                  .build();
+
+          jKubeServiceHub.getBuildService().build(imageConfiguration);
+
+          final String imageId = jKubeServiceHub
+              .getDockerServiceHub()
+              .getDockerAccess()
+              .getImageId(imageName);
 
 
-        // Push the image to registry
-        kitLogger.info("Pushing image (%s)  to registry", imageName);
+          kitLogger.debug("Docker image built successfully (%s)!", imageId);
 
-        jKubeServiceHub
-            .getDockerServiceHub()
-            .getRegistryService()
-            .pushImages(
-                Collections.singletonList(imageConfiguration), 0,
-                registryConfig(),
-                false);
+
+          // Push the image to registry
+          kitLogger.info("Pushing image (%s)  to registry", imageName);
+
+          jKubeServiceHub
+              .getDockerServiceHub()
+              .getRegistryService()
+              .pushImages(
+                  Collections.singletonList(imageConfiguration), 0,
+                  registryConfig(),
+                  false);
+        }
+      } else {
+        throw new IllegalStateException("Unable to deploy app with URI " +
+            strImageUri);
       }
-    } else {
-      throw new IllegalStateException("Unable to deploy app with URI " +
-          strImageUri);
+    } catch (Exception e) {
+      LOGGER.error("Error building Java Image {}", strImageUri, e);
+      imageName = null;
     }
     return Optional.ofNullable(imageName);
   }
 
   // TODO #8 Differentiate SB vs Quarkus using plugins
-  private Optional<File> downloadArtifact(JavaRepoInfo repo) {
+  private Optional<File> downloadArtifact(boolean isQuarkus,
+      JavaRepoInfo repo) throws Exception {
     var groupId = "com.github." + repo.owner;
+    if (isQuarkus) {
+      return mavenArtifactService.resolveArtifact(groupId, repo.name, "jar",
+          repo.ref, "runner");
+    }
     return mavenArtifactService.resolveArtifact(groupId, repo.name, "jar",
         repo.ref);
+  }
+
+  private boolean isNotMaster(String ref) {
+    return "master-SNAPSHOT".equals(ref);
   }
 
 }

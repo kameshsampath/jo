@@ -30,8 +30,7 @@ public class ResolverUtil {
     if ("jbang".equals(scheme)) {
       // TODO #4 move to offical Image PR to jbang
       return Optional.of(joBaseImage);
-    } else if ("java".equals(scheme)) {
-      // TODO #4 move to offical Image PR to jbang
+    } else if ("java".equals(scheme) || "quarkus".equals(scheme)) {
       return Optional.of(javaBaseImage);
     }
     return Optional.ofNullable(null);
@@ -43,7 +42,7 @@ public class ResolverUtil {
     if ("jbang".equals(scheme)) {
       // TODO #4 move to offical Image PR to jbang
       return Optional.of(jbangImageBuilder);
-    } else if ("java".equals(scheme)) {
+    } else if ("java".equals(scheme) || "quarkus".equals(scheme)) {
       return Optional.of(javaImageBuilder);
     }
     return Optional.ofNullable(null);

@@ -1,0 +1,9 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: greeter
+spec:
+  template:
+    spec:
+      containers:
+        - image: quarkus://github.com/kameshsampath/jo-quarkus-helloworld

@@ -68,12 +68,6 @@
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-smallrye-fault-tolerance</artifactId>
     </dependency>
-    <!-- https://mvnrepository.com/artifact/org.apache.maven.resolver/maven-resolver-transport-http -->
-    <dependency>
-      <groupId>org.apache.maven.resolver</groupId>
-      <artifactId>maven-resolver-transport-http</artifactId>
-      <version>1.4.2</version>
-    </dependency>
   </dependencies>
   <repositories>
     <repository>

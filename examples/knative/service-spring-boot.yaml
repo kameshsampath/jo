@@ -1,0 +1,9 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: greeter
+spec:
+  template:
+    spec:
+      containers:
+        - image: java://github.com/kameshsampath/jo-sb-helloworld

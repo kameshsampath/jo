@@ -32,6 +32,10 @@ $PROJECT_HOME/bin/start-kind.sh
 
 == Hello World (Kubernetes Example)
 
+You can deploy any one of the following applications, ofcourse all with names changed ;)
+
+=== Jbang
+
 [source,bash]
 ----
 cd $PROJECT_HOME
@@ -39,6 +43,27 @@ java -jar target/jo-runner.jar apply --file="$PWD/examples/kubernetes/deployment
 ----
 
 The command above should do the deployment of the jbang script github.com/kameshsampath/jo/examples/http/server.java as Kubernetes application.
+
+=== Quarkus
+
+[source,bash]
+----
+cd $PROJECT_HOME
+java -jar target/jo-runner.jar apply --file="$PWD/examples/kubernetes/deployment-quarkus.yaml"
+----
+
+The command above should do the deployment of the Quarkus Applicationt github.com/kameshsampath/jo-quarkus-helloworld as Kubernetes application.
+
+=== SpringBoot
+
+[source,bash]
+----
+cd $PROJECT_HOME
+java -jar target/jo-runner.jar apply --file="$PWD/examples/kubernetes/deployment-spring-boot.yaml"
+----
+
+The command above should do the deployment of the Quarkus Applicationt github.com/kameshsampath/jo-sb-helloworld as Kubernetes application.
+
 
 Wait for the hello-world pod to come up:
 
@@ -57,15 +82,42 @@ kubectl apply --file="$PROJECT_HOME/examples/kubernetes/service.yaml"
 
 Now doing curl localhost/hello should show a response like **Hello World**
 
-== Hello World (Knative Example)
+== Greeter (Knative Example)
 
-[source,bash,subs="attributes+,macros+"]
+
+You can deploy any one of the following applications, ofcourse all with names changed ;)
+
+=== Jbang
+
+[source,bash]
 ----
 cd $PROJECT_HOME
-java -jar target/jo-runner.jar apply --file="$PWD/examples/knative/service.yaml"
+java -jar target/jo-runner.jar apply --file="$PWD/examples/knative/service-jbang.yaml"
 ----
 
-The command above will create a Knative Service of the jbang script https://github.com/kameshsampath/jo/examples/http/server.java.
+The command above should do the  Knative service  deployment of the jbang script github.com/kameshsampath/jo/examples/http/server.java as Kubernetes application.
+
+=== Quarkus
+
+[source,bash]
+----
+cd $PROJECT_HOME
+java -jar target/jo-runner.jar apply --file="$PWD/examples/knative/service-quarkus.yaml"
+----
+
+The command above should do the Knative service deployment of the Quarkus Application github.com/kameshsampath/jo-quarkus-helloworld as Kubernetes application.
+
+=== SpringBoot
+
+[source,bash]
+----
+cd $PROJECT_HOME
+java -jar target/jo-runner.jar apply --file="$PWD/examples/knative/service-spring-boot.yaml"
+----
+
+The command above should do the Knative service deployment of the Quarkus Applicationt github.com/kameshsampath/jo-sb-helloworld as Kubernetes application.
+
+
 
 Wait for the greeter Knative service to come up:
 

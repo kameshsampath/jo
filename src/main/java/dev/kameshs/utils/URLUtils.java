@@ -20,7 +20,7 @@ public class URLUtils {
 
   final Pattern JAVA_URI_PATTERN = Pattern
       .compile(
-          "^https://github.com/(?<owner>.*)/(?<repo>[\\w-_]*):?(?<ref>.*)");
+          "^(java|quarkus)://github.com/(?<owner>.*)/(?<repo>[\\w-_]*):?(?<ref>.*)");
 
 
   public String swizzleURL(String url) {

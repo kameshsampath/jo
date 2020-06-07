@@ -15,15 +15,16 @@ import dev.kameshs.service.MavenArtifactService;
 import dev.kameshs.utils.URLUtils;
 import io.quarkus.test.junit.QuarkusTest;
 
+// TODO #9 Fix this test case using Quarkus libraries MavenRepo helpers
 @QuarkusTest
 public class MavenArtifactServiceTest {
 
   @Inject
   MavenArtifactService service;
 
-  final String sbRepoURI = "https://github.com/kameshsampath/jo-sb-helloworld";
+  final String sbRepoURI = "java://github.com/kameshsampath/jo-sb-helloworld";
   final String quarkusRepoURI =
-      "https://github.com/kameshsampath/hello-quarkus";
+      "quarkus://github.com/kameshsampath/hello-quarkus";
 
   @Inject
   @RestClient
