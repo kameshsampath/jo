@@ -1,0 +1,19 @@
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: jo-sb-helloworld
+spec:
+  selector:
+    matchLabels:
+      app: sb
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: sb
+    spec:
+      containers:
+        - name: hello-world
+          image: java://github.com/kameshsampath/jo-sb-helloworld
+          ports:
+            - containerPort: 8080

@@ -4,75 +4,28 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.net.URI;
-import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import javax.annotation.PostConstruct;
 import javax.enterprise.context.ApplicationScoped;
-import javax.inject.Inject;
 import org.eclipse.jkube.kit.build.service.docker.ImageConfiguration;
-import org.eclipse.jkube.kit.build.service.docker.RegistryConfig;
-import org.eclipse.jkube.kit.build.service.docker.ServiceHub;
-import org.eclipse.jkube.kit.build.service.docker.ServiceHubFactory;
-import org.eclipse.jkube.kit.build.service.docker.auth.AuthConfigFactory;
 import org.eclipse.jkube.kit.common.Assembly;
 import org.eclipse.jkube.kit.common.AssemblyConfiguration;
 import org.eclipse.jkube.kit.common.AssemblyFileSet;
-import org.eclipse.jkube.kit.common.JavaProject;
-import org.eclipse.jkube.kit.common.KitLogger;
-import org.eclipse.jkube.kit.common.util.Slf4jKitLogger;
-import org.eclipse.jkube.kit.config.JKubeConfiguration;
 import org.eclipse.jkube.kit.config.image.build.Arguments;
 import org.eclipse.jkube.kit.config.image.build.BuildConfiguration;
 import org.eclipse.jkube.kit.config.resource.RuntimeMode;
-import org.eclipse.jkube.kit.config.service.BuildServiceConfig;
 import org.eclipse.jkube.kit.config.service.JKubeServiceHub;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
-import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import dev.kameshs.service.GitHubContentService;
-import dev.kameshs.utils.ImageResolverUtil;
 
 @ApplicationScoped
-public class ImageBuilder {
+public class JBangImageBuilder extends ImageBuilderBase {
 
   private static final Logger LOGGER =
-      LoggerFactory.getLogger(ImageBuilder.class.getName());
-
-  @Inject
-  ImageResolverUtil imageResolverUtil;
-
-  @Inject
-  @RestClient
-  GitHubContentService ghContentService;
-
-  @ConfigProperty(name = "dev.kameshs.jo-container-repo")
-  Optional<String> joContainerRepo;
-
-  KitLogger kitLogger;
-  ServiceHub serviceHub;
-  JKubeConfiguration configuration;
-  BuildServiceConfig dockerBuildServiceConfig;
-
-  @PostConstruct
-  void init() {
-    kitLogger = new Slf4jKitLogger(LOGGER);
-    kitLogger.info(
-        "Initiating default JKube configuration and required services...");
-    kitLogger.info(" - Creating Docker Service Hub");
-    serviceHub = new ServiceHubFactory().createServiceHub(kitLogger);
-    kitLogger.info(" - Creating Docker Build Service Configuration");
-    dockerBuildServiceConfig = BuildServiceConfig.builder().build();
-    kitLogger.info(" - Creating configuration for JKube");
-    configuration = JKubeConfiguration.builder()
-        .project(JavaProject.builder()
-            .baseDirectory(Paths.get("").toAbsolutePath().toFile()).build())
-        .outputDirectory("target").build();
-  }
+      LoggerFactory.getLogger(JBangImageBuilder.class.getName());
 
   public Optional<String> newBuild(String strImageUri) throws Exception {
     String imageName = null;
@@ -221,13 +174,4 @@ public class ImageBuilder {
     return Optional.ofNullable(file);
   }
 
-
-  // TODO #7 Ability to configure the external registries
-  private RegistryConfig registryConfig() {
-    return RegistryConfig
-        .builder()
-        .settings(Collections.emptyList())
-        .authConfigFactory(new AuthConfigFactory(kitLogger))
-        .build();
-  }
 }

@@ -6,11 +6,22 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Scanner;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import javax.enterprise.context.ApplicationScoped;
+import com.google.common.base.Strings;
 import com.google.gson.Gson;
+import dev.kameshs.data.Gist;
+import dev.kameshs.data.JavaRepoInfo;
 
 @ApplicationScoped
 public class URLUtils {
+
+
+  final Pattern JAVA_URI_PATTERN = Pattern
+      .compile(
+          "^https://github.com/(?<owner>.*)/(?<repo>[\\w-_]*):?(?<ref>.*)");
+
 
   public String swizzleURL(String url) {
     url = url.replaceFirst("^https://github.com/(.*)/blob/(.*)$",
@@ -74,9 +85,6 @@ public class URLUtils {
     }
   }
 
-  static class Gist {
-    Map<String, Map<String, String>> files;
-  }
 
   public String readStringFromURL(String requestURL) throws IOException {
     try (Scanner scanner = new Scanner(new URL(requestURL).openStream(),
@@ -86,5 +94,18 @@ public class URLUtils {
     }
   }
 
-
+  public Optional<JavaRepoInfo> repoInfoFromURI(String uri) {
+    Matcher matcher = JAVA_URI_PATTERN.matcher(uri);
+    if (matcher.matches()) {
+      var repoInfo = new JavaRepoInfo();
+      repoInfo.owner = matcher.group("owner");
+      repoInfo.name = matcher.group("repo");
+      repoInfo.ref =
+          Strings.isNullOrEmpty(matcher.group("ref")) ? "master-SNAPSHOT"
+              : matcher
+                  .group("ref");
+      return Optional.ofNullable(repoInfo);
+    }
+    return Optional.ofNullable(null);
+  }
 }

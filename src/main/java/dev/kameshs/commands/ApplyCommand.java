@@ -11,7 +11,8 @@ import javax.inject.Inject;
 import javax.inject.Named;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import dev.kameshs.actions.ImageBuilder;
+import dev.kameshs.actions.ImageBuilderBase;
+import dev.kameshs.utils.ResolverUtil;
 import io.fabric8.knative.client.KnativeClient;
 import io.fabric8.knative.serving.v1.Service;
 import io.fabric8.kubernetes.api.model.Container;
@@ -37,13 +38,12 @@ public class ApplyCommand implements Runnable {
   @Named("kubernetes-client")
   KubernetesClient kubernetesClient;
 
-
   @Inject
   @Named("knative-client")
   KnativeClient knativeClient;
 
   @Inject
-  ImageBuilder imageBuilder;
+  protected ResolverUtil resolverUtil;
 
   @Override
   public void run() {
@@ -92,7 +92,8 @@ public class ApplyCommand implements Runnable {
           String imageURI = container.getImage();
           LOGGER.debug("Image URI {}", imageURI);
           try {
-            Optional<String> builtImage = imageBuilder.newBuild(imageURI);
+            Optional<String> builtImage =
+                imageBuilder(imageURI).newBuild(imageURI);
             if (builtImage.isPresent()) {
 
               LOGGER.debug("Built Image URI {}", builtImage.get());
@@ -139,7 +140,9 @@ public class ApplyCommand implements Runnable {
     LOGGER.debug("Image URI {}", imageURI);
 
     try {
-      Optional<String> builtImage = imageBuilder.newBuild(imageURI);
+
+
+      Optional<String> builtImage = imageBuilder(imageURI).newBuild(imageURI);
       if (builtImage.isPresent()) {
 
         LOGGER.debug("Built Image URI {}", builtImage.get());
@@ -177,5 +180,13 @@ public class ApplyCommand implements Runnable {
             : metadataResource
                 .getMetadata().getNamespace();
     return manifestNamespace;
+  }
+
+  protected ImageBuilderBase imageBuilder(String imageURI) {
+    Optional<ImageBuilderBase> oImageBuilder =
+        resolverUtil.resolveBuilderFromURI(imageURI);
+    oImageBuilder.orElseThrow(() -> new IllegalStateException(
+        "Unable to find Image builder for URI " + imageURI));
+    return oImageBuilder.get();
   }
 }
