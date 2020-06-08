@@ -5,10 +5,12 @@ import java.util.Optional;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 import javax.inject.Named;
-import org.jboss.shrinkwrap.resolver.api.maven.ConfigurableMavenResolverSystem;
-import org.jboss.shrinkwrap.resolver.api.maven.Maven;
+import org.eclipse.aether.artifact.Artifact;
+import org.eclipse.aether.artifact.DefaultArtifact;
+import org.eclipse.aether.resolution.ArtifactResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import io.quarkus.bootstrap.resolver.maven.MavenArtifactResolver;
 
 @ApplicationScoped
 public class MavenArtifactService {
@@ -16,17 +18,16 @@ public class MavenArtifactService {
   private static final Logger LOGGER =
       LoggerFactory.getLogger(MavenArtifactService.class);
 
-  @Named("jo-jitpack-maven-resolver-system")
+  @Named("jo-maven-artifact-resolver")
   @Inject
-  ConfigurableMavenResolverSystem mavenResolverSystem;
+  MavenArtifactResolver mavenArtifactResolver;
 
   public Optional<File> resolveArtifact(String groupId, String artifactId,
       String packaging, String version) {
     try {
-      // G:A:P:V
-      String mavenCoords =
-          String.join(":", groupId, artifactId, packaging, version);
-      return resolveArtifact(mavenCoords);
+      Artifact artifact =
+          new DefaultArtifact(groupId, artifactId, packaging, version);
+      return resolveArtifact(artifact);
     } catch (Exception e) {
       LOGGER.error("Error resolving artifact {}",
           String.join(":", groupId, artifactId, packaging,
@@ -39,11 +40,10 @@ public class MavenArtifactService {
   public Optional<File> resolveArtifact(String groupId, String artifactId,
       String packaging, String version, String classifier) {
     try {
-      // G:A:P:C:V
-      String mavenCoords =
-          String.join(":", groupId, artifactId, packaging,
-              classifier, version);
-      return resolveArtifact(mavenCoords);
+      Artifact artifact =
+          new DefaultArtifact(groupId, artifactId,
+              classifier, packaging, version);
+      return resolveArtifact(artifact);
     } catch (Exception e) {
       LOGGER.error("Error resolving artifact {}",
           String.join(":", groupId, artifactId,
@@ -54,12 +54,16 @@ public class MavenArtifactService {
     return Optional.ofNullable(null);
   }
 
-  protected Optional<File> resolveArtifact(String mavenCoords)
+  protected Optional<File> resolveArtifact(Artifact artifact)
       throws Exception {
-    File artifactFile = Maven.resolver()
-        .resolve(mavenCoords)
-        .withoutTransitivity()
-        .asSingleFile();
+    File artifactFile = null;
+    ArtifactResult artifactResult = mavenArtifactResolver
+        .resolve(artifact);
+    if (artifactResult.isResolved()) {
+      artifactFile = artifactResult.getArtifact().getFile();
+    } else if (artifactResult.isMissing()) {
+      LOGGER.error("Error resolving artifact {}, reason missing", artifact);
+    }
     return Optional.ofNullable(artifactFile);
   }
 }

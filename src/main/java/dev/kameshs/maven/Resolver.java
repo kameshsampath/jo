@@ -1,30 +1,44 @@
 package dev.kameshs.maven;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import javax.annotation.PostConstruct;
 import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.inject.Produces;
 import javax.inject.Named;
+import org.eclipse.aether.repository.RemoteRepository;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
-import org.jboss.shrinkwrap.resolver.api.maven.ConfigurableMavenResolverSystem;
-import org.jboss.shrinkwrap.resolver.api.maven.Maven;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import io.quarkus.bootstrap.resolver.AppModelResolverException;
+import io.quarkus.bootstrap.resolver.maven.MavenArtifactResolver;
 
 @ApplicationScoped
 public class Resolver {
 
-  private static final Logger LOGGER =
-      LoggerFactory.getLogger(Resolver.class);
+  private final List<RemoteRepository> remoteRepos = new ArrayList<>();
 
-  @ConfigProperty(name = "dev.kameshs.jo-maven-repo",
-      defaultValue = "target/local-repo")
-  String joMavenRepo;
+  @ConfigProperty(name = "dev.kameshs.jo-local-repo")
+  Optional<String> localRepo;
 
-  @Named("jo-jitpack-maven-resolver-system")
+  @PostConstruct
+  void init() {
+    RemoteRepository jitPackRepo = new RemoteRepository.Builder(
+        "jitpack.io",
+        "default",
+        "https://jitpack.io")
+            .build();
+    remoteRepos.add(jitPackRepo);
+  }
+
+  @Named("jo-maven-artifact-resolver")
   @Produces
-  ConfigurableMavenResolverSystem mavenResolverSystem() {
-    return Maven
-        .configureResolver()
-        .withRemoteRepo("jitpack.io",
-            "https://jitpack.io", "default");
+  MavenArtifactResolver mavenArtifactResolver()
+      throws AppModelResolverException {
+    return MavenArtifactResolver
+        .builder()
+        .setRemoteRepositories(remoteRepos)
+        .setLocalRepository(localRepo.orElse(String.join("/",
+            System.getProperty("user.home"), ".m2", "repository")))
+        .build();
   }
 }
