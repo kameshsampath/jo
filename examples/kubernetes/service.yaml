@@ -12,6 +12,8 @@ apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
   name: hello-world-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /hello
 spec:
   rules:
     - http:
