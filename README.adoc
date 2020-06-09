@@ -86,7 +86,7 @@ cd $PROJECT_HOME
 kubectl apply --filename="$PROJECT_HOME/examples/kubernetes/service.yaml"
 ----
 
-Now doing curl localhost/hello should show a response like **Hello World** or **Hello from Quarkus** or **Hello from  SpringBoot**
+Now doing curl localhost/greeting should show a response like **Hello World** or **Hello from Quarkus** or **Hello from  SpringBoot**
 
 == Greeter (Knative Example)
 

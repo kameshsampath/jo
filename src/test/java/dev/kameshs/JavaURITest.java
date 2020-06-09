@@ -18,7 +18,7 @@ public class JavaURITest {
   @Test
   public void testWithoutRef() {
     Optional<JavaRepoInfo> rOptional = urlUtils.repoInfoFromURI(
-        "https://github.com/kameshsampath/jo-sb-helloworld");
+        "java://github.com/kameshsampath/jo-sb-helloworld");
     assertTrue(rOptional.isPresent());
     var repoInfo = rOptional.get();
     assertEquals("kameshsampath", repoInfo.owner);
@@ -29,11 +29,11 @@ public class JavaURITest {
   @Test
   public void testWithRef() {
     Optional<JavaRepoInfo> rOptional = urlUtils.repoInfoFromURI(
-        "https://github.com/kameshsampath/jo-sb-helloworld:v1.0.0");
+        "quarkus://github.com/kameshsampath/jo-quarkus-helloworld:v1.0.0");
     assertTrue(rOptional.isPresent());
     var repoInfo = rOptional.get();
     assertEquals("kameshsampath", repoInfo.owner);
-    assertEquals("jo-sb-helloworld", repoInfo.name);
+    assertEquals("jo-quarkus-helloworld", repoInfo.name);
     assertEquals("v1.0.0", repoInfo.ref);
   }
 }

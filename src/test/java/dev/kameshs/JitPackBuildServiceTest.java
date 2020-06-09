@@ -16,7 +16,7 @@ import io.quarkus.test.junit.QuarkusTest;
 @QuarkusTest
 public class JitPackBuildServiceTest {
 
-  final String repoURI = "https://github.com/kameshsampath/hello-quarkus";
+  final String repoURI = "quarkus://github.com/kameshsampath/hello-quarkus";
 
   @Inject
   @RestClient

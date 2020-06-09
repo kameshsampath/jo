@@ -4,9 +4,9 @@ metadata:
   name: hello-world-service
 spec:
   selector:
-   app: helloworld
+    app: helloworld
   ports:
-  - port: 8080
+    - port: 8080
 ---
 apiVersion: extensions/v1beta1
 kind: Ingress
@@ -14,9 +14,9 @@ metadata:
   name: hello-world-ingress
 spec:
   rules:
-  - http:
-      paths:
-      - path: /hello
-        backend:
-          serviceName: hello-world-service
-          servicePort: 8080
+    - http:
+        paths:
+          - path: /greeting
+            backend:
+              serviceName: hello-world-service
+              servicePort: 8080

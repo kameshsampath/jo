@@ -22,31 +22,25 @@ public class URLUtils {
       .compile(
           "^(java|quarkus)://github.com/(?<owner>.*)/(?<repo>[\\w-_]*):?(?<ref>.*)");
 
-
-  public String swizzleURL(String url) {
-    url = url.replaceFirst("^https://github.com/(.*)/blob/(.*)$",
-        "https://raw.githubusercontent.com/$1/$2");
-
-    url = url.replaceFirst("^https://gitlab.com/(.*)/-/blob/(.*)$",
-        "https://gitlab.com/$1/-/raw/$2");
-
-    url = url.replaceFirst("^https://bitbucket.org/(.*)/src/(.*)$",
-        "https://bitbucket.org/$1/raw/$2");
-
-    url = url.replaceFirst("^https://twitter.com/(.*)/status/(.*)$",
-        "https://mobile.twitter.com/$1/status/$2");
-
-    if (url.startsWith("https://gist.github.com/")) {
-      url = extractFileFromGist(url);
+  public Optional<JavaRepoInfo> repoInfoFromURI(String uri) {
+    Matcher matcher = JAVA_URI_PATTERN.matcher(uri);
+    if (matcher.matches()) {
+      var repoInfo = new JavaRepoInfo();
+      repoInfo.owner = matcher.group("owner");
+      repoInfo.name = matcher.group("repo");
+      repoInfo.ref =
+          Strings.isNullOrEmpty(matcher.group("ref")) ? "master-SNAPSHOT"
+              : matcher
+                  .group("ref");
+      return Optional.ofNullable(repoInfo);
     }
-
-    return url;
+    return Optional.ofNullable(null);
   }
+
 
   public String extractFileFromGist(String url) {
     // TODO: for gist we need to be smarter when it comes to downloading as it gives
     // an invalid flag when jbang compiles
-
     try {
       String gistapi = url.replaceFirst(
           "^https://gist.github.com/(([a-zA-Z0-9]*)/)?(?<gistid>[a-zA-Z0-9]*)$",
@@ -94,18 +88,25 @@ public class URLUtils {
     }
   }
 
-  public Optional<JavaRepoInfo> repoInfoFromURI(String uri) {
-    Matcher matcher = JAVA_URI_PATTERN.matcher(uri);
-    if (matcher.matches()) {
-      var repoInfo = new JavaRepoInfo();
-      repoInfo.owner = matcher.group("owner");
-      repoInfo.name = matcher.group("repo");
-      repoInfo.ref =
-          Strings.isNullOrEmpty(matcher.group("ref")) ? "master-SNAPSHOT"
-              : matcher
-                  .group("ref");
-      return Optional.ofNullable(repoInfo);
+
+  public String swizzleURL(String url) {
+    url = url.replaceFirst("^https://github.com/(.*)/blob/(.*)$",
+        "https://raw.githubusercontent.com/$1/$2");
+
+    url = url.replaceFirst("^https://gitlab.com/(.*)/-/blob/(.*)$",
+        "https://gitlab.com/$1/-/raw/$2");
+
+    url = url.replaceFirst("^https://bitbucket.org/(.*)/src/(.*)$",
+        "https://bitbucket.org/$1/raw/$2");
+
+    url = url.replaceFirst("^https://twitter.com/(.*)/status/(.*)$",
+        "https://mobile.twitter.com/$1/status/$2");
+
+    if (url.startsWith("https://gist.github.com/")) {
+      url = extractFileFromGist(url);
     }
-    return Optional.ofNullable(null);
+
+    return url;
   }
+
 }
