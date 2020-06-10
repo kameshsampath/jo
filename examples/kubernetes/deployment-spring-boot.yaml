@@ -1,15 +1,17 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: helloworld
+  name: hello-world-spring-boot
 spec:
   selector:
     matchLabels:
+      src: spring-boot
       app: helloworld
   replicas: 1
   template:
     metadata:
       labels:
+        src: spring-boot
         app: helloworld
     spec:
       containers:
@@ -17,3 +19,11 @@ spec:
           image: java://github.com/kameshsampath/jo-sb-helloworld
           ports:
             - containerPort: 8080
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080

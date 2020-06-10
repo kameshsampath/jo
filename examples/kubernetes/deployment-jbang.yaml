@@ -1,15 +1,17 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: hello-world
+  name: hello-world-jbang
 spec:
   selector:
     matchLabels:
+      src: jbang
       app: helloworld
   replicas: 1
   template:
     metadata:
       labels:
+        src: jbang
         app: helloworld
     spec:
       containers:
@@ -17,3 +19,11 @@ spec:
           image: jbang://github.com/kameshsampath/jo/examples/http/server
           ports:
             - containerPort: 8080
+          livenessProbe:
+            httpGet:
+              path: /live
+              port: 8080
+          readinessProbe:
+            httpGet:
+              path: /live
+              port: 8080

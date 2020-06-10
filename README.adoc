@@ -1,8 +1,8 @@
 = Jo
 
-Highly inspired from https://github.com/google/ko[ko], a similar tool for Java using https://jbang.dev[jbang].
+Highly inspired from https://github.com/google/ko[ko], a similar tool for deploying any Java microservices (uber jars) as Kubernetes application
 
-IMPORTANT: Under active development so lots change and nothing working perfectly now
+IMPORTANT: Under active development so lots change and at times breaking :D 
 
 == Pre-requisites
 
@@ -20,19 +20,19 @@ NOTE: If you are using Docker for Windows, then https://docs.microsoft.com/en-us
 git clone https://github.com/kameshsampath/jo
 cd jo
 export $PROJECT_HOME=`pwd` 
-mvn clean install -DskipTests
+./mvnw clean install -DskipTests
 ----
 
 == Start Kubernetes Cluster
+
+IMPORTANT: Currently the application is tested only with local clusters. Working on to add support to hosted clusters
 
 [source,bash]
 ----
 $PROJECT_HOME/bin/start-kind.sh
 ----
 
-== Hello World (Kubernetes Example)
-
-You can deploy any one of the following applications, ofcourse all with names changed ;)
+== Kubernetes Example
 
 === Jbang
 
@@ -49,7 +49,27 @@ The command above should do the deployment of the jbang script github.com/kamesh
 //TODO #10 Handle non uber jar Quarkus projects
 [IMPORTANT]
 ====
-Since quarkus does not do uberjar by default, you need to configure Quarkus app to build uberjar so that the runner jar is deployed with *classifier*
+Since quarkus does not do uberjar by default, you need to configure Quarkus app to build uberjar so that the runner jar is deployed with *classifier*:
+[source,xml]
+----
+<plugin>
+  <groupId>io.quarkus</groupId>
+  <artifactId>quarkus-maven-plugin</artifactId>
+  <version>${quarkus-plugin.version}</version>
+  <executions>
+    <execution>
+      <goals>
+        <goal>build</goal>
+      </goals>
+    </execution>
+  </executions>
+  <!-- Make your application deployable as uber jar -->
+  <configuration>
+    <uberJar>true</uberJar>
+  </configuration>
+</plugin>
+----
+
 ====
 
 [source,bash]
@@ -88,10 +108,7 @@ kubectl apply --filename="$PROJECT_HOME/examples/kubernetes/service.yaml"
 
 Now doing curl localhost/greeting should show a response like **Hello World** or **Hello from Quarkus** or **Hello from  SpringBoot**
 
-== Greeter (Knative Example)
-
-
-You can deploy any one of the following applications, ofcourse all with names changed ;)
+== Knative Example
 
 === Jbang
 
@@ -146,3 +163,4 @@ The `curl $SVC_URL` should show a response like **Hello World** or **Hello from 
 
 * https://quarkus.io[Quarkus]
 * https://www.eclipse.org/jkube/[jkube]
+* https://jitpack.io[JitPack]

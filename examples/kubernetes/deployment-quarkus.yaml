@@ -1,15 +1,17 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: helloworld
+  name: hello-world-quarkus
 spec:
   selector:
     matchLabels:
+      src: quarkus
       app: helloworld
   replicas: 1
   template:
     metadata:
       labels:
+        src: quarkus
         app: helloworld
     spec:
       containers:
@@ -17,3 +19,11 @@ spec:
           image: quarkus://github.com/kameshsampath/jo-quarkus-helloworld
           ports:
             - containerPort: 8080
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 8080
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8080

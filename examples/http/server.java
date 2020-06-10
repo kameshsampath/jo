@@ -39,9 +39,14 @@ public class server extends AbstractVerticle {
 
     Router router = Router.router(vertx);
 
+    router.route("/live").handler(routingContext -> {
+      routingContext.response().putHeader("content-type", "text/plain")
+          .end("OK");
+    });
+
     router.route().handler(routingContext -> {
       routingContext.response().putHeader("content-type", "text/html")
-          .end("Hello World!");
+          .end("Hello World JBang!");
     });
 
     vertx.createHttpServer().requestHandler(router).listen(LISTEN_PORT_8080);
