@@ -17,6 +17,7 @@ spec:
       containers:
         - name: hello-world
           image: java://github.com/kameshsampath/jo-sb-helloworld
+          imagePullPoicy: Always
           ports:
             - containerPort: 8080
           livenessProbe:

@@ -17,6 +17,7 @@ spec:
       containers:
         - name: hello-world
           image: quarkus://github.com/kameshsampath/jo-quarkus-helloworld
+          imagePullPoicy: Always
           ports:
             - containerPort: 8080
           livenessProbe:

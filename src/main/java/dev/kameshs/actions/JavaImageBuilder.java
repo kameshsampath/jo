@@ -67,9 +67,9 @@ public class JavaImageBuilder extends ImageBuilderBase {
 
       // TODO - need to rest it well
       // Ensure Build is there and available for download
-      JitPackBuild build =
-          jitPackBuildService
-              .buildByTag(groupId, repoInfo.name, repoInfo.ref);
+      LOGGER.info("Using version {}", repoInfo.ref);
+      JitPackBuild build = jitPackBuildService
+          .buildByTag(groupId, repoInfo.name, repoInfo.ref);
 
       if ("ok".equalsIgnoreCase(build.status)) {
 

@@ -160,14 +160,17 @@ public class JBangImageBuilder extends ImageBuilderBase {
       LOGGER.debug("Script file content {} ", fileContent);
 
       file = new File(System.getProperty("java.io.tmpdir"), destinationFile);
-      if (fileContent != null && file.getParentFile().mkdirs()) {
+      if (fileContent != null) {
+        LOGGER.info("Destination file {} ", file.getAbsolutePath());
         try (FileWriter fw = new FileWriter(file);
             BufferedWriter writer = new BufferedWriter(fw)) {
           writer.write(fileContent);
         }
       }
 
-    } catch (Exception e) {
+    } catch (
+
+    Exception e) {
       LOGGER.error("Error downloading file {}", downloadURL, e);
       file = null;
     }

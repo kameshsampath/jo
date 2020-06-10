@@ -17,13 +17,6 @@ spec:
       containers:
         - name: hello-world
           image: jbang://github.com/kameshsampath/jo/examples/http/server
+          imagePullPoicy: Always
           ports:
             - containerPort: 8080
-          livenessProbe:
-            httpGet:
-              path: /live
-              port: 8080
-          readinessProbe:
-            httpGet:
-              path: /live
-              port: 8080

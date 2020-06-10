@@ -8,6 +8,7 @@ import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.inject.Produces;
 import javax.inject.Named;
 import org.eclipse.aether.repository.RemoteRepository;
+import org.eclipse.aether.repository.RepositoryPolicy;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import io.quarkus.bootstrap.resolver.AppModelResolverException;
 import io.quarkus.bootstrap.resolver.maven.MavenArtifactResolver;
@@ -26,6 +27,13 @@ public class Resolver {
         "jitpack.io",
         "default",
         "https://jitpack.io")
+            .setReleasePolicy(new RepositoryPolicy(true,
+                RepositoryPolicy.UPDATE_POLICY_NEVER,
+                RepositoryPolicy.CHECKSUM_POLICY_FAIL))
+            .setSnapshotPolicy(
+                new RepositoryPolicy(true,
+                    RepositoryPolicy.UPDATE_POLICY_ALWAYS,
+                    RepositoryPolicy.CHECKSUM_POLICY_FAIL))
             .build();
     remoteRepos.add(jitPackRepo);
   }
