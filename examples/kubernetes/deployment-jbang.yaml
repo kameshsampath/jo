@@ -20,3 +20,11 @@ spec:
           imagePullPoicy: Always
           ports:
             - containerPort: 8080
+          livenessProbe:
+            httpGet:
+              path: /live
+              port: 8080
+          readinessProbe:
+            httpGet:
+              path: /live
+              port: 8080
