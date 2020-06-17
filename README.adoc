@@ -39,7 +39,7 @@ $PROJECT_HOME/bin/start-kind.sh
 [source,bash]
 ----
 cd $PROJECT_HOME
-java -jar target/jo-runner.jar apply --file="$PWD/examples/kubernetes/deployment.yaml"
+java -jar target/jo-runner.jar apply --file="$PWD/examples/kubernetes/deployment-jbang.yaml"
 ----
 
 The command above should do the deployment of the jbang script github.com/kameshsampath/jo/examples/http/server.java as Kubernetes application.
